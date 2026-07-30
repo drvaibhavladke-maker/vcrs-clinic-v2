@@ -123,7 +123,7 @@ const MODULES = [
     fields: [
       { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
       { name: "Title", db: "title", type: "text" },
-      { name: "Image URL", db: "image_url", type: "text" },
+      { name: "Image URL", db: "image_url", type: "file" },
       { name: "Description", db: "description", type: "textarea" },
       { name: "Status", db: "status", type: "select", options: ["Active", "Archived"] },
     ],
@@ -278,6 +278,13 @@ async function updateRow(table, id, payload) {
 async function deleteRow(table, id) {
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) throw error;
+}
+       async function uploadPhoto(file) {
+  const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+  const { error } = await supabase.storage.from("clinical-photos").upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from("clinical-photos").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 /* ---------------------------------------------------------------
@@ -451,6 +458,30 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
                 <span className="text-xs" style={{ color: COLORS.inkSoft }}>Auto-calculated by the database</span>
                 <span style={{ fontFamily: "IBM Plex Mono, monospace", color: COLORS.ink }} className="text-sm font-semibold">{fmtMoney(amt - disc + tax)}</span>
               </div>
+            </Field>
+          );
+        }
+      if (field.type === "file") {
+          return (
+            <Field key={field.name} label={field.name}>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  try {
+                    const url = await uploadPhoto(file);
+                    setForm((f) => ({ ...f, [field.name]: url }));
+                  } catch (err) {
+                    alert("Upload failed: " + err.message);
+                  }
+                }}
+                className="w-full text-sm"
+              />
+              {form[field.name] && (
+                <img src={form[field.name]} alt="Preview" className="mt-2 rounded-lg max-h-40 object-cover" />
+              )}
             </Field>
           );
         }
