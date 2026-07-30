@@ -261,7 +261,7 @@ function recordLabel(module, rec) {
    Supabase data helpers
 ------------------------------------------------------------------ */
 async function fetchAll(table) {
-  const { data, error } = await supabase.from(table).select("*").order("created_on", { ascending: false, nullsFirst: false });
+  const { data, error } = await supabase.from(table).select("*");
   if (error) throw error;
   return data || [];
 }
