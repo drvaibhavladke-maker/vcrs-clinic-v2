@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
-  TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut,
+ TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 
@@ -100,6 +100,7 @@ const MODULES = [
       { name: "Frequency", db: "frequency", type: "text" },
       { name: "Duration", db: "duration", type: "text" },
       { name: "Instructions", db: "instructions", type: "textarea" },
+      { name: "Attachment", db: "attachment_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx,image/*" },
       { name: "Status", db: "status", type: "select", options: ["Active", "Completed", "Cancelled"] },
     ],
     listColumns: ["Patient ID", "Medicine", "Dosage", "Frequency", "Status"],
@@ -112,7 +113,8 @@ const MODULES = [
       { name: "Test Name", db: "test_name", type: "text", required: true },
       { name: "Sample Type", db: "sample_type", type: "text" },
       { name: "Result", db: "result", type: "text" },
-      { name: "Normal Range", db: "normal_range", type: "text" },
+     { name: "Normal Range", db: "normal_range", type: "text" },
+      { name: "Report File", db: "report_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx,image/*" },
       { name: "Status", db: "status", type: "select", options: ["Pending", "Completed"] },
     ],
     listColumns: ["Patient ID", "Test Name", "Result", "Status"],
@@ -123,7 +125,7 @@ const MODULES = [
     fields: [
       { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
       { name: "Title", db: "title", type: "text" },
-      { name: "Image URL", db: "image_url", type: "file" },
+     { name: "Image URL", db: "image_url", type: "file", bucket: "clinical-photos", accept: "image/*" },
       { name: "Description", db: "description", type: "textarea" },
       { name: "Status", db: "status", type: "select", options: ["Active", "Archived"] },
     ],
@@ -279,12 +281,20 @@ async function deleteRow(table, id) {
   const { error } = await supabase.from(table).delete().eq("id", id);
   if (error) throw error;
 }
-       async function uploadPhoto(file) {
+      async function uploadFile(file, bucket) {
   const path = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, "_")}`;
-  const { error } = await supabase.storage.from("clinical-photos").upload(path, file);
+  const { error } = await supabase.storage.from(bucket).upload(path, file);
   if (error) throw error;
-  const { data } = supabase.storage.from("clinical-photos").getPublicUrl(path);
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
+}
+function fileNameFromUrl(url) {
+  try {
+    const last = decodeURIComponent(url.split("/").pop() || "");
+    return last.replace(/^\d+-/, "");
+  } catch {
+    return "Attached file";
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -461,17 +471,18 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
             </Field>
           );
         }
-      if (field.type === "file") {
+     if (field.type === "file") {
+          const isImage = field.accept?.includes("image") && /\.(png|jpe?g|gif|webp)$/i.test(form[field.name] || "");
           return (
             <Field key={field.name} label={field.name}>
               <input
                 type="file"
-                accept="image/*"
+                accept={field.accept || "*/*"}
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
                   try {
-                    const url = await uploadPhoto(file);
+                    const url = await uploadFile(file, field.bucket || "documents");
                     setForm((f) => ({ ...f, [field.name]: url }));
                   } catch (err) {
                     alert("Upload failed: " + err.message);
@@ -479,13 +490,18 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
                 }}
                 className="w-full text-sm"
               />
-              {form[field.name] && (
+              {form[field.name] && isImage && (
                 <img src={form[field.name]} alt="Preview" className="mt-2 rounded-lg max-h-40 object-cover" />
+              )}
+              {form[field.name] && !isImage && (
+                <a href={form[field.name]} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-sm underline" style={{ color: COLORS.teal }}>
+                  <FileText size={14} /> {fileNameFromUrl(form[field.name])}
+                </a>
               )}
             </Field>
           );
-        }
-        if (field.type === "password") {
+        }       
+      if (field.type === "password") {
           return <Field key={field.name} label={field.name}><TextInput type="password" value={form[field.name]} onChange={set(field.name)} autoComplete="new-password" /></Field>;
         }
         return <Field key={field.name} label={field.name} required={field.required}><TextInput type={field.type} value={form[field.name]} onChange={set(field.name)} required={field.required} disabled={locked} /></Field>;
