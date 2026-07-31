@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3,
+ TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Printer,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -18,8 +18,7 @@ const COLORS = {
   violet: "#6A5A9C", violetSoft: "#E9E5F3",
 };
 const FONT_IMPORT =
-  "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');";
-
+  "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap'); @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { position: absolute; left: 0; top: 0; width: 100%; padding: 24px; } .no-print { display: none !important; } }";
 const CURRENT_USER = "Admin"; // replace with logged-in user once auth is added
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (iso) => {
@@ -518,6 +517,9 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
 /* ---------------------------------------------------------------
    Generic module table view
 ------------------------------------------------------------------ */
+function getSetting(data, key) {
+  return (data.settings || []).find((s) => s.key === key)?.value || "";
+}
 function displayValue(module, fieldLabel, rec, data) {
   const fieldDef = module.fields.find((f) => f.name === fieldLabel);
   const raw = fieldDef ? rec[fieldDef.db] : rec[fieldLabel];
@@ -532,8 +534,7 @@ function displayValue(module, fieldLabel, rec, data) {
   return String(raw);
 }
 
-function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onOpenFk, noDeps }) {
-  const [search, setSearch] = useState("");
+function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onOpenFk, onPrint, noDeps }) {  const [search, setSearch] = useState("");
   const cols = module.listColumns || module.fields.slice(0, 4).map((f) => f.name);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -565,12 +566,12 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
           action={!module.readOnly && records.length === 0 ? <PrimaryButton onClick={onAdd}><Plus size={16} /> Add {module.label.replace(/s$/, "")}</PrimaryButton> : null} />
       ) : (
         <div className="rounded-xl overflow-hidden" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
-          <div className="grid px-5 py-2.5 text-xs font-semibold" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr) 72px`, background: COLORS.surface, color: COLORS.inkSoft, borderBottom: `1px solid ${COLORS.line}` }}>
-            {cols.map((c) => <span key={c} className="truncate">{c}</span>)}<span></span>
+          <div className="grid px-5 py-2.5 text-xs font-semibold" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr) 104px`, background: COLORS.surface, color: COLORS.inkSoft, borderBottom: `1px solid ${COLORS.line}` }}>
+          {cols.map((c) => <span key={c} className="truncate">{c}</span>)}<span></span>
           </div>
           {filtered.map((r) => (
-            <div key={r.id} className="grid items-center px-5 py-3 text-sm" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr) 72px`, borderBottom: `1px solid ${COLORS.line}` }}>
-              {cols.map((c) => {
+          <div key={r.id} className="grid items-center px-5 py-3 text-sm" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr) 104px`, borderBottom: `1px solid ${COLORS.line}` }}> 
+          {cols.map((c) => {
                 const val = displayValue(module, c, r, data);
                 const fieldDef = module.fields.find((f) => f.name === c);
                 const isStatus = c === "Status";
@@ -583,10 +584,16 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
                   </span>
                 );
               })}
-              <span className="flex items-center gap-0.5 justify-end">
-                {!module.readOnly && (<><IconBtn onClick={() => onEdit(r)} title="Edit"><Edit2 size={14} /></IconBtn><IconBtn onClick={() => onDelete(r)} title="Delete" danger><Trash2 size={14} /></IconBtn></>)}
-              </span>
-            </div>
+          <span className="flex items-center gap-0.5 justify-end">
+                  {onPrint && <IconBtn onClick={() => onPrint(r)} title="Print"><Printer size={14} /></IconBtn>}
+                  {!module.readOnly && (
+                    <>
+                      <IconBtn onClick={() => onEdit(r)} title="Edit"><Edit2 size={14} /></IconBtn>
+                      <IconBtn onClick={() => onDelete(r)} title="Delete" danger><Trash2 size={14} /></IconBtn>
+                    </>
+                  )}
+                </span>    
+          </div>
           ))}
         </div>
       )}
@@ -928,7 +935,88 @@ function ReportsView({ data }) {
     </div>
   );
 }
-function SetupNeeded() {
+function PrintDocument({ type, record, patient, data }) {
+  const clinicName = getSetting(data, "clinic_name") || "Your Clinic Name";
+  const clinicAddress = getSetting(data, "clinic_address");
+  const clinicPhone = getSetting(data, "clinic_phone");
+  const doctorName = getSetting(data, "doctor_name");
+  const doctorQualification = getSetting(data, "doctor_qualification");
+
+  return (
+    <div id="printable-area" style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
+      <div style={{ textAlign: "center", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
+        <h1 style={{ fontFamily: "Fraunces, serif", fontSize: "24px", margin: 0 }}>{clinicName}</h1>
+        {clinicAddress && <p style={{ fontSize: "12px", margin: "4px 0 0", color: "#4A615C" }}>{clinicAddress}</p>}
+        {clinicPhone && <p style={{ fontSize: "12px", margin: "2px 0 0", color: "#4A615C" }}>{clinicPhone}</p>}
+        {(doctorName || doctorQualification) && (
+          <p style={{ fontSize: "13px", margin: "8px 0 0", fontWeight: 600 }}>{doctorName} {doctorQualification && `— ${doctorQualification}`}</p>
+        )}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "16px" }}>
+        <div>
+          <strong>Patient:</strong> {recordLabel(MODULES_BY_KEY.patients, patient)}<br />
+          {patient?.age && <>Age/Gender: {patient.age} / {patient.gender}<br /></>}
+          {patient?.patient_id && <>Patient ID: {patient.patient_id}</>}
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <strong>Date:</strong> {fmtDate(record.created_on || todayISO())}<br />
+          <strong>{type === "bill" ? "Bill No" : "Rx No"}:</strong> {type === "bill" ? record.bill_id : record.prescription_id}
+        </div>
+      </div>
+
+      {type === "bill" ? (
+        <>
+          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "16px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px" }}>Invoice</h2>
+          <table style={{ width: "100%", fontSize: "13px", marginTop: "12px", borderCollapse: "collapse" }}>
+            <tbody>
+              <tr><td style={{ padding: "6px 0" }}>Description</td><td style={{ textAlign: "right" }}>{record.description || "—"}</td></tr>
+              <tr><td style={{ padding: "6px 0" }}>Amount</td><td style={{ textAlign: "right" }}>{fmtMoney(record.amount)}</td></tr>
+              <tr><td style={{ padding: "6px 0" }}>Discount</td><td style={{ textAlign: "right" }}>{fmtMoney(record.discount)}</td></tr>
+              <tr><td style={{ padding: "6px 0" }}>Tax</td><td style={{ textAlign: "right" }}>{fmtMoney(record.tax)}</td></tr>
+              <tr style={{ borderTop: "1px solid #DCE3DD", fontWeight: 700 }}><td style={{ padding: "8px 0" }}>Net Amount</td><td style={{ textAlign: "right" }}>{fmtMoney(record.net_amount)}</td></tr>
+              <tr><td style={{ padding: "6px 0" }}>Status</td><td style={{ textAlign: "right" }}>{record.status}</td></tr>
+            </tbody>
+          </table>
+        </>
+      ) : (
+        <>
+          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "20px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px" }}>℞ Prescription</h2>
+          <div style={{ fontSize: "13px", marginTop: "12px", lineHeight: 1.8 }}>
+            <p><strong>Medicine:</strong> {record.medicine}</p>
+            <p><strong>Dosage:</strong> {record.dosage || "—"} &nbsp;&nbsp; <strong>Frequency:</strong> {record.frequency || "—"} &nbsp;&nbsp; <strong>Duration:</strong> {record.duration || "—"}</p>
+            {record.instructions && <p><strong>Instructions:</strong> {record.instructions}</p>}
+          </div>
+        </>
+      )}
+
+      <div style={{ marginTop: "60px", textAlign: "right", fontSize: "13px" }}>
+        <p style={{ borderTop: "1px solid #16302B", display: "inline-block", paddingTop: "4px" }}>Doctor's Signature</p>
+      </div>
+    </div>
+  );
+}
+
+function PrintModal({ printTarget, patient, data, onClose }) {
+  if (!printTarget) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,48,43,0.6)" }}>
+      <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" style={{ background: "#fff" }}>
+        <div className="flex items-center justify-between px-5 py-3 no-print" style={{ borderBottom: "1px solid #DCE3DD" }}>
+          <p className="text-sm font-semibold" style={{ color: COLORS.ink }}>Preview</p>
+          <div className="flex items-center gap-2">
+            <PrimaryButton onClick={() => window.print()}>Print / Save as PDF</PrimaryButton>
+            <IconBtn onClick={onClose} title="Close"><X size={18} /></IconBtn>
+          </div>
+        </div>
+        <div className="overflow-y-auto">
+          <PrintDocument type={printTarget.type} record={printTarget.record} patient={patient} data={data} />
+        </div>
+      </div>
+    </div>
+  );
+}
+    function SetupNeeded() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif" }}>
       <style>{FONT_IMPORT}</style>
@@ -990,8 +1078,9 @@ function LoginScreen() {
    Main App
 ------------------------------------------------------------------ */
 export default function App() {
+  const [printTarget, setPrintTarget] = useState(null);
   const [session, setSession] = useState(undefined);
-  const [loaded, setLoaded] = useState(false);
+const [loaded, setLoaded] = useState(false);
 const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const [data, setData] = useState({});
@@ -1186,10 +1275,20 @@ const [loadError, setLoadError] = useState("");
         {view === "patients" && activePatient && (
           <PatientDetail patient={activePatient} data={data} onBack={() => setActivePatient(null)} onEditPatient={() => setModal({ moduleKey: "patients", initial: activePatient })} openAdd={openAdd} openEdit={openEdit} openDelete={openDelete} />
         )}
-        {MODULES.filter((m) => m.key !== "patients").map((m) => view === m.key && (
-          <GenericModuleView key={m.key} module={m} records={data[m.key] || []} data={data} onAdd={() => setModal({ moduleKey: m.key })} onEdit={(r) => openEdit(m.key, r)} onDelete={(r) => openDelete(m.key, r)} onOpenFk={openFkTarget}
-            noDeps={m.fields.some((f) => f.type === "fk" && f.module === "patients") && patients.length === 0} />
-        ))}
+      {MODULES.filter((m) => m.key !== "patients").map((m) => view === m.key && (
+          <GenericModuleView
+            key={m.key}
+            module={m}
+            records={data[m.key] || []}
+            data={data}
+            onAdd={() => setModal({ moduleKey: m.key })}
+            onEdit={(r) => openEdit(m.key, r)}
+            onDelete={(r) => openDelete(m.key, r)}
+            onOpenFk={openFkTarget}
+            onPrint={(m.key === "billing" || m.key === "prescriptions") ? (r) => setPrintTarget({ type: m.key === "billing" ? "bill" : "prescription", record: r }) : undefined}
+            noDeps={m.fields.some((f) => f.type === "fk" && f.module === "patients") && patients.length === 0}
+          />
+        ))}  
       </main>
 
       {modal && (
@@ -1200,6 +1299,14 @@ const [loadError, setLoadError] = useState("");
         </Modal>
       )}
       {confirmDelete && <ConfirmDialog message={confirmDelete.message} onConfirm={confirmDelete.onConfirm} onCancel={() => setConfirmDelete(null)} busy={deleting} />}
+      {printTarget && (
+        <PrintModal
+          printTarget={printTarget}
+          patient={patients.find((p) => p.id === printTarget.record.patient_id)}
+          data={data}
+          onClose={() => setPrintTarget(null)}
+        />
+      )}
     </div>
   );
 }
