@@ -205,6 +205,7 @@ const MODULES = [
       { name: "Authors", db: "authors", type: "text" },
       { name: "Year", db: "year", type: "number" },
       { name: "DOI", db: "doi", type: "text" },
+      { name: "Full Paper", db: "paper_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx" },
       { name: "Status", db: "status", type: "select", options: ["Draft", "Submitted", "Published"] },
     ],
     listColumns: ["Title", "Journal", "Year", "Status"],
