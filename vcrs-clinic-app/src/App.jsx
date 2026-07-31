@@ -4,10 +4,10 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText,
+ TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
-
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
 /* ---------------------------------------------------------------
    Design tokens — same clinic-ledger look as the prototype.
 ------------------------------------------------------------------ */
@@ -764,6 +764,170 @@ function Dashboard({ data, goToPatient, setView }) {
 /* ---------------------------------------------------------------
    Setup screen shown if env vars are missing
 ------------------------------------------------------------------ */
+const CHART_COLORS = [COLORS.teal, COLORS.amber, COLORS.violet, COLORS.rose, "#2E6E8C", "#7A8C2E", "#9C6ADE", "#D98E5F"];
+
+function ageGroup(age) {
+  const n = parseInt(age, 10);
+  if (isNaN(n)) return "Unknown";
+  if (n < 18) return "0-17";
+  if (n < 31) return "18-30";
+  if (n < 46) return "31-45";
+  if (n < 61) return "46-60";
+  return "60+";
+}
+
+function ReportsView({ data }) {
+  const today = todayISO();
+  const firstOfMonth = today.slice(0, 8) + "01";
+  const [from, setFrom] = useState(firstOfMonth);
+  const [to, setTo] = useState(today);
+
+  const inRange = (d) => d && d >= from && d <= to;
+
+  const patients = data.patients || [];
+  const appointments = (data.appointments || []).filter((a) => inRange(a.appointment_date));
+  const consultations = (data.consultations || []).filter((c) => inRange((c.created_on || "").slice(0, 10)));
+  const billing = (data.billing || []).filter((b) => inRange(b.created_on));
+  const newPatients = patients.filter((p) => inRange(p.created_on));
+
+  const seenPatientIds = new Set([
+    ...appointments.map((a) => a.patient_id),
+    ...consultations.map((c) => c.patient_id),
+  ]);
+  const seenPatients = patients.filter((p) => seenPatientIds.has(p.id));
+
+  const revenuePaid = billing.filter((b) => b.status === "Paid").reduce((s, b) => s + (parseFloat(b.net_amount) || 0), 0);
+  const revenueUnpaid = billing.filter((b) => b.status !== "Paid").reduce((s, b) => s + (parseFloat(b.net_amount) || 0), 0);
+
+  const genderData = useMemo(() => {
+    const counts = {};
+    seenPatients.forEach((p) => { const g = p.gender || "Unknown"; counts[g] = (counts[g] || 0) + 1; });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  }, [seenPatients]);
+
+  const ageData = useMemo(() => {
+    const counts = {};
+    seenPatients.forEach((p) => { const g = ageGroup(p.age); counts[g] = (counts[g] || 0) + 1; });
+    const order = ["0-17", "18-30", "31-45", "46-60", "60+", "Unknown"];
+    return order.filter((k) => counts[k]).map((name) => ({ name, count: counts[name] }));
+  }, [seenPatients]);
+
+  const diagnosisData = useMemo(() => {
+    const counts = {};
+    consultations.forEach((c) => {
+      const label = (c.diagnosis || "").trim();
+      if (!label) return;
+      counts[label] = (counts[label] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+  }, [consultations]);
+
+  const trendData = useMemo(() => {
+    const counts = {};
+    appointments.forEach((a) => { counts[a.appointment_date] = (counts[a.appointment_date] || 0) + 1; });
+    return Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date: fmtDate(date), count }));
+  }, [appointments]);
+
+  const stats = [
+    { label: "New patients", value: newPatients.length },
+    { label: "Appointments", value: appointments.length },
+    { label: "Consultations", value: consultations.length },
+    { label: "Revenue collected", value: fmtMoney(revenuePaid), mono: true },
+    { label: "Outstanding", value: fmtMoney(revenueUnpaid), mono: true },
+  ];
+
+  return (
+    <div>
+      <header className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div>
+          <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-2xl font-semibold">Reports</h1>
+          <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">Demographics, diagnoses, and activity for a chosen period.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <TextInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: "150px" }} />
+          <span style={{ color: COLORS.inkSoft }} className="text-sm">to</span>
+          <TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: "150px" }} />
+        </div>
+      </header>
+
+      <div className="grid grid-cols-5 gap-3 mb-8">
+        {stats.map((s) => (
+          <div key={s.label} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+            <span className="text-xs font-medium block mb-2" style={{ color: COLORS.inkSoft }}>{s.label}</span>
+            <p style={{ fontFamily: s.mono ? "IBM Plex Mono, monospace" : "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold">{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        <div className="rounded-xl p-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+          <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-sm font-semibold mb-4">Patients by gender</h2>
+          {genderData.length === 0 ? <p className="text-sm text-center py-10" style={{ color: COLORS.inkSoft }}>No patients seen in this period.</p> : (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={genderData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                  {genderData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="rounded-xl p-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+          <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-sm font-semibold mb-4">Patients by age group</h2>
+          {ageData.length === 0 ? <p className="text-sm text-center py-10" style={{ color: COLORS.inkSoft }}>No patients seen in this period.</p> : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={ageData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.line} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Bar dataKey="count" fill={COLORS.teal} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div className="rounded-xl p-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+          <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-sm font-semibold mb-4">Top diagnoses / lesions</h2>
+          {diagnosisData.length === 0 ? <p className="text-sm text-center py-10" style={{ color: COLORS.inkSoft }}>No consultations recorded in this period.</p> : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={diagnosisData} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.line} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="count" fill={COLORS.amber} radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="rounded-xl p-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+          <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-sm font-semibold mb-4">Appointment volume</h2>
+          {trendData.length === 0 ? <p className="text-sm text-center py-10" style={{ color: COLORS.inkSoft }}>No appointments in this period.</p> : (
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke={COLORS.line} />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Line type="monotone" dataKey="count" stroke={COLORS.teal} strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 function SetupNeeded() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif" }}>
@@ -976,8 +1140,15 @@ const [loadError, setLoadError] = useState("");
           <div><p style={{ fontFamily: "Fraunces, serif", color: "#fff" }} className="text-sm font-semibold leading-tight">VCRS Suite</p><p style={{ color: "#9DBDB4" }} className="text-[11px]">Clinic &amp; research desk</p></div>
         </div>
         <nav className="flex-1 px-2 space-y-4">
-          <button onClick={() => { setView("dashboard"); setActivePatient(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: view === "dashboard" ? COLORS.teal : "transparent", color: view === "dashboard" ? "#fff" : "#B7D1C9" }}>
+          <button onClick={() => { setView("dashboard"); setActivePatient(null); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: view === "dashboard" ? COLORS.teal : "transparent", color: view === "dashboard" ? "#fff" : "#B7D1C9" }}>
             <LayoutDashboard size={16} /> Dashboard
+          </button>
+          <button onClick={() => { setView("reports"); setActivePatient(null); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: view === "reports" ? COLORS.teal : "transparent", color: view === "reports" ? "#fff" : "#B7D1C9" }}>
+            <BarChart3 size={16} /> Reports
           </button>
           {NAV_GROUPS.map((g) => (
             <div key={g.category}>
@@ -1007,7 +1178,8 @@ const [loadError, setLoadError] = useState("");
       <main className="flex-1 min-w-0 p-6 overflow-y-auto">
         <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
 
-        {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
+       {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
+        {view === "reports" && <ReportsView data={data} />}
         {view === "patients" && !activePatient && (
           <PatientsList patients={filteredPatients} search={search} setSearch={setSearch} onAdd={() => setModal({ moduleKey: "patients" })} onOpen={goToPatient} onEdit={(p) => setModal({ moduleKey: "patients", initial: p })} onDelete={(p) => openDelete("patients", p)} />
         )}
