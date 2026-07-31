@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
-  TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2,
+  TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 
@@ -764,13 +764,54 @@ function SetupNeeded() {
     </div>
   );
 }
+function LoginScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) setError(error.message);
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif" }}>
+      <style>{FONT_IMPORT}</style>
+      <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ background: COLORS.teal }}>
+          <Stethoscope size={18} color="#fff" />
+        </div>
+        <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold mb-1">VCRS Clinic Suite</h1>
+        <p className="text-sm mb-5" style={{ color: COLORS.inkSoft }}>Sign in to continue.</p>
+        <form onSubmit={submit} className="space-y-4">
+          <Field label="Email">
+            <TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </Field>
+          <Field label="Password">
+            <TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </Field>
+          {error && <p className="text-sm" style={{ color: COLORS.rose }}>{error}</p>}
+          <PrimaryButton type="submit" full disabled={loading}>
+            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {loading ? "Signing in..." : "Sign in"}
+          </PrimaryButton>
+        </form>
+      </div>
+    </div>
+  );
+}
 /* ---------------------------------------------------------------
    Main App
 ------------------------------------------------------------------ */
 export default function App() {
+  const [session, setSession] = useState(undefined);
   const [loaded, setLoaded] = useState(false);
-  const [loadError, setLoadError] = useState("");
+const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const [data, setData] = useState({});
   const [view, setView] = useState("dashboard");
@@ -793,9 +834,24 @@ export default function App() {
     }
   }, []);
 
-  useEffect(() => { if (supabaseConfigured) reloadAll(); }, [reloadAll]);
+ useEffect(() => {
+    if (!supabaseConfigured) return;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => setSession(newSession));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => { if (supabaseConfigured && session) reloadAll(); }, [reloadAll, session]);
 
   if (!supabaseConfigured) return <SetupNeeded />;
+  if (session === undefined) {
+    return (
+      <div className="flex items-center justify-center min-h-screen" style={{ background: COLORS.surface }}>
+        <Loader2 size={20} className="animate-spin" style={{ color: COLORS.teal }} />
+      </div>
+    );
+  }
+  if (session === null) return <LoginScreen />;
 
   const logAudit = useCallback(async (moduleLabel, action, description) => {
     try {
@@ -925,9 +981,13 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <div className="px-5 pt-4 mt-2" style={{ borderTop: "1px solid #1E4A41" }}>
+      <div className="px-5 pt-4 mt-2 space-y-2" style={{ borderTop: "1px solid #1E4A41" }}>
           <p style={{ color: "#6F958A" }} className="text-[11px] leading-relaxed inline-flex items-center gap-1"><Lock size={11} /> Live on Supabase</p>
-        </div>
+          <p style={{ color: "#6F958A" }} className="text-[11px] truncate">{session?.user?.email}</p>
+          <button onClick={() => supabase.auth.signOut()} className="text-[11px] inline-flex items-center gap-1 font-medium" style={{ color: "#B7D1C9" }}>
+            <LogOut size={12} /> Sign out
+          </button>
+        </div> 
       </aside>
 
       <main className="flex-1 min-w-0 p-6 overflow-y-auto">
