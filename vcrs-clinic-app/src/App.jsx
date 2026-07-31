@@ -842,17 +842,6 @@ const [loadError, setLoadError] = useState("");
   }, []);
 
   useEffect(() => { if (supabaseConfigured && session) reloadAll(); }, [reloadAll, session]);
-
-  if (!supabaseConfigured) return <SetupNeeded />;
-  if (session === undefined) {
-    return (
-      <div className="flex items-center justify-center min-h-screen" style={{ background: COLORS.surface }}>
-        <Loader2 size={20} className="animate-spin" style={{ color: COLORS.teal }} />
-      </div>
-    );
-  }
-  if (session === null) return <LoginScreen />;
-
   const logAudit = useCallback(async (moduleLabel, action, description) => {
     try {
       const entry = await insertRow("audit_log", { module: moduleLabel, action, user: CURRENT_USER, description });
@@ -944,6 +933,15 @@ const [loadError, setLoadError] = useState("");
 
   const NAV_GROUPS = CATEGORY_ORDER.map((cat) => ({ category: cat, items: MODULES.filter((m) => m.category === cat) }));
 
+  if (!supabaseConfigured) return <SetupNeeded />;
+  if (session === undefined) {
+    return (
+      <div className="flex items-center justify-center min-h-screen" style={{ background: COLORS.surface }}>
+        <Loader2 size={20} className="animate-spin" style={{ color: COLORS.teal }} />
+      </div>
+    );
+  }
+  if (session === null) return <LoginScreen />;
   if (!loaded) {
     return (
       <div className="flex items-center justify-center min-h-screen" style={{ background: COLORS.surface }}>
@@ -952,7 +950,6 @@ const [loadError, setLoadError] = useState("");
       </div>
     );
   }
-
   return (
     <div style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif", minHeight: "100vh" }} className="w-full flex">
       <style>{FONT_IMPORT}</style>
