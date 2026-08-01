@@ -18,7 +18,7 @@ const COLORS = {
   violet: "#6A5A9C", violetSoft: "#E9E5F3",
 };
 const FONT_IMPORT =
-  "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap'); @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { position: absolute; left: 0; top: 0; width: 100%; padding: 24px; } .no-print { display: none !important; } }";
+  "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap'); @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { position: absolute; left: 0; top: 0; width: 100%; padding: 24px; } .no-print { display: none !important; } html, body { height: auto !important; overflow: visible !important; } .print-overlay, .print-card, .print-scroll { position: static !important; overflow: visible !important; max-height: none !important; height: auto !important; background: none !important; box-shadow: none !important; } }";
 const CURRENT_USER = "Admin"; // replace with logged-in user once auth is added
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (iso) => {
@@ -970,18 +970,30 @@ function PrintDocument({ type, record, patient, data }) {
   return (
     <div id="printable-area" style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
     {type === "histopathology" ? (
-        <div style={{ textAlign: "center", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
-          {doctorName && <p style={{ fontSize: "16px", margin: 0, fontWeight: 700 }}>{doctorName}{doctorQualification ? `. ${doctorQualification}` : ""}</p>}
-          {getSetting(data, "doctor_registration") && <p style={{ fontSize: "12px", margin: "4px 0 0", fontWeight: 600 }}>Registration No.: {getSetting(data, "doctor_registration")}</p>}
-          {getSetting(data, "doctor_designation") && <p style={{ fontSize: "12px", margin: "4px 0 0", fontWeight: 600 }}>{getSetting(data, "doctor_designation")}</p>}
-          {(clinicPhone || getSetting(data, "doctor_email")) && (
-            <p style={{ fontSize: "11.5px", margin: "4px 0 0", fontWeight: 600 }}>
-              {clinicPhone && `Contact: ${clinicPhone}`}{clinicPhone && getSetting(data, "doctor_email") ? " / " : ""}{getSetting(data, "doctor_email") && `Email Id: ${getSetting(data, "doctor_email")}`}
-            </p>
-          )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
+          <div style={{ flex: 1, textAlign: "left" }}>
+            {getSetting(data, "logo_left_url") && (
+              <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "70px", display: "block" }} />
+            )}
+          </div>
+          <div style={{ flex: 2, textAlign: "center" }}>
+            {doctorName && <p style={{ fontSize: "16px", margin: 0, fontWeight: 700 }}>{doctorName}{doctorQualification ? `. ${doctorQualification}` : ""}</p>}
+            {getSetting(data, "doctor_registration") && <p style={{ fontSize: "12px", margin: "4px 0 0", fontWeight: 600 }}>Registration No.: {getSetting(data, "doctor_registration")}</p>}
+            {getSetting(data, "doctor_designation") && <p style={{ fontSize: "12px", margin: "4px 0 0", fontWeight: 600 }}>{getSetting(data, "doctor_designation")}</p>}
+            {(clinicPhone || getSetting(data, "doctor_email")) && (
+              <p style={{ fontSize: "11.5px", margin: "4px 0 0", fontWeight: 600 }}>
+                {clinicPhone && `Contact: ${clinicPhone}`}{clinicPhone && getSetting(data, "doctor_email") ? " / " : ""}{getSetting(data, "doctor_email") && `Email Id: ${getSetting(data, "doctor_email")}`}
+              </p>
+            )}
+          </div>
+          <div style={{ flex: 1, textAlign: "right" }}>
+            {getSetting(data, "logo_right_url") && (
+              <img src={getSetting(data, "logo_right_url")} alt="Integrative Health Logo" style={{ height: "70px", marginLeft: "auto", display: "block" }} />
+            )}
+          </div>
         </div>
       ) : (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
           <div style={{ flex: 1.3, textAlign: "left" }}>
             {doctorName && <p style={{ fontSize: "13px", margin: 0, fontWeight: 700 }}>{doctorName}</p>}
             {doctorQualification && <p style={{ fontSize: "10.5px", margin: "3px 0 0", color: "#4A615C" }}>• {doctorQualification}</p>}
@@ -1090,8 +1102,8 @@ function PrintDocument({ type, record, patient, data }) {
 function PrintModal({ printTarget, patient, data, onClose }) {
   if (!printTarget) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,48,43,0.6)" }}>
-      <div className="w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" style={{ background: "#fff" }}>
+    <div className="print-overlay fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(22,48,43,0.6)" }}>
+      <div className="print-card w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col" style={{ background: "#fff" }}>
         <div className="flex items-center justify-between px-5 py-3 no-print" style={{ borderBottom: "1px solid #DCE3DD" }}>
           <p className="text-sm font-semibold" style={{ color: COLORS.ink }}>Preview</p>
           <div className="flex items-center gap-2">
@@ -1099,14 +1111,14 @@ function PrintModal({ printTarget, patient, data, onClose }) {
             <IconBtn onClick={onClose} title="Close"><X size={18} /></IconBtn>
           </div>
         </div>
-        <div className="overflow-y-auto">
+        <div className="print-scroll overflow-y-auto">
           <PrintDocument type={printTarget.type} record={printTarget.record} patient={patient} data={data} />
         </div>
       </div>
     </div>
   );
 }
-    function SetupNeeded() {
+function SetupNeeded() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif" }}>
       <style>{FONT_IMPORT}</style>
