@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Integrative Health — Oral &amp; Maxillofacial Pathology, Dr. Vaibhav S. Ladke</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #F5FAF8;
+    --card: #FFFFFF;
+    --line: #DCEAE5;
+    --ink: #123A38;
+    --ink-soft: #4F6F6A;
+    --blue: #1E7FA0;
+    --navy: #1B4D6E;
+    --teal: #178C74;
+    --green: #2F9169;
+    --red: #C24B3E;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Inter', sans-serif; line-height: 1.65; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 28px; }
+  h1, h2, h3 { font-family: 'Sora', sans-serif; margin: 0; color: var(--ink); }
+  .eyebrow { font-size: 12.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); font-weight: 700; }
+  a { color: inherit; }
+
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 24px 0; }
+  .brand { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+  .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: linear-gradient(135deg, var(--blue), var(--green)); }
+  .nav-links { display: flex; gap: 28px; font-size: 14px; color: var(--ink-soft); }
+  .nav-links a:hover { color: var(--teal); }
+
+  .hero { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 50px; align-items: center; padding: 30px 0 60px; }
+  .hero h1 { font-size: 40px; line-height: 1.18; margin-top: 14px; letter-spacing: -0.01em; }
+  .hero p.sub { color: var(--ink-soft); font-size: 16px; margin-top: 18px; max-width: 48ch; }
+  .hero-ctas { display: flex; gap: 14px; margin-top: 30px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 999px; font-size: 14px; font-weight: 600; text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: opacity 0.15s ease, transform 0.15s ease; }
+  .btn:hover { transform: translateY(-1px); }
+  .btn-primary { background: var(--red); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary { background: #fff; color: var(--ink); border-color: var(--line); }
+  .btn-secondary:hover { border-color: var(--teal); color: var(--teal); }
+
+  .ring-wrap { display: flex; justify-content: center; }
+  @media (prefers-reduced-motion: no-preference) {
+    .ring-group { animation: spin 40s linear infinite; transform-origin: 200px 200px; }
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .statbar { background: var(--navy); padding: 30px 0; }
+  .statgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center; }
+  .statgrid .num { font-family: 'Sora', sans-serif; font-size: 24px; font-weight: 700; color: #fff; }
+  .statgrid .label { font-size: 12.5px; color: #A9C7D6; margin-top: 4px; }
+
+  section { padding: 70px 0; }
+  .section-head { max-width: 62ch; margin-bottom: 40px; }
+  .section-head h2 { font-size: 27px; margin-top: 10px; }
+  .section-head p { color: var(--ink-soft); margin-top: 12px; font-size: 15px; }
+
+  .path-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .path-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; border-top: 4px solid var(--stage-color, var(--teal)); }
+  .path-card .n { font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700; color: var(--stage-color, var(--teal)); }
+  .path-card h3 { font-size: 16.5px; margin: 10px 0 8px; }
+  .path-card p { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+
+  .cond-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .cond-pill { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+  .cond-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+
+  .why-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .why-card { padding: 6px 0; }
+  .why-card h3 { font-size: 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .why-card .num-badge { width: 28px; height: 28px; border-radius: 50%; background: var(--teal); color: #fff; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .why-card p { color: var(--ink-soft); font-size: 14px; margin: 0 0 0 38px; }
+
+  .contact { background: var(--navy); color: #fff; border-radius: 16px; padding: 50px; display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 40px; align-items: center; margin-bottom: 70px; }
+  .contact h2 { color: #fff; font-size: 27px; }
+  .contact p { color: #A9C7D6; margin-top: 12px; font-size: 15px; max-width: 42ch; }
+  .contact-info { font-size: 14px; }
+  .contact-info div { margin-bottom: 10px; color: #E4F0EC; }
+  .contact-info a { color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.35); }
+
+  footer { text-align: center; color: var(--ink-soft); font-size: 12.5px; padding: 30px 0 50px; }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; }
+    .path-grid { grid-template-columns: 1fr 1fr; }
+    .cond-grid { grid-template-columns: 1fr 1fr; }
+    .why-grid { grid-template-columns: 1fr; }
+    .statgrid { grid-template-columns: repeat(2, 1fr); }
+    .contact { grid-template-columns: 1fr; padding: 32px 24px; }
+    .hero h1 { font-size: 30px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <div class="brand"><span class="dot"></span>Integrative Health <span style="color:var(--ink-soft); font-weight:400;">· Oral &amp; Maxillofacial Pathology</span></div>
+    <div class="nav-links">
+      <a href="#pathway">The Pathway</a>
+      <a href="#conditions">Conditions</a>
+      <a href="#why">Why Us</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+
+  <div class="hero">
+    <div>
+      <span class="eyebrow">From Discovery to Complete Care</span>
+      <h1>An accurate diagnosis is the foundation of the right treatment.</h1>
+      <p class="sub">Clinical examination, biopsy-backed diagnosis, and a treatment plan built specifically for your condition — from Dr. Vaibhav S. Ladke, BDS, MDS, PhD, Consulting Oral &amp; Maxillofacial Pathologist with 10+ years of clinical and histopathology practice.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="mailto:drvaibhavladke@gmail.com?subject=Consultation%20Request">Book a consultation</a>
+        <a class="btn btn-secondary" href="#pathway">See the pathway</a>
+      </div>
+    </div>
+    <div class="ring-wrap">
+      <svg viewBox="0 0 400 400" width="100%" style="max-width:360px;">
+        <g class="ring-group">
+          <circle cx="200" cy="200" r="150" fill="none" stroke="var(--blue)" stroke-width="26" stroke-dasharray="196 40" stroke-linecap="round" transform="rotate(-90 200 200)" />
+          <circle cx="200" cy="200" r="150" fill="none" stroke="var(--navy)" stroke-width="26" stroke-dasharray="196 40" stroke-linecap="round" transform="rotate(0 200 200)" />
+          <circle cx="200" cy="200" r="150" fill="none" stroke="var(--teal)" stroke-width="26" stroke-dasharray="196 40" stroke-linecap="round" transform="rotate(90 200 200)" />
+          <circle cx="200" cy="200" r="150" fill="none" stroke="var(--green)" stroke-width="26" stroke-dasharray="196 40" stroke-linecap="round" transform="rotate(180 200 200)" />
+        </g>
+        <circle cx="200" cy="200" r="112" fill="#F5FAF8" />
+        <text x="200" y="192" text-anchor="middle" fill="var(--ink)" font-family="Sora, sans-serif" font-weight="700" font-size="16">Examination</text>
+        <text x="200" y="182" text-anchor="middle" fill="var(--ink-soft)" font-family="Inter, sans-serif" font-size="12">to</text>
+        <text x="200" y="210" text-anchor="middle" fill="var(--ink)" font-family="Sora, sans-serif" font-weight="700" font-size="16">Treatment</text>
+        <text x="70" y="65" fill="var(--blue)" font-family="Sora, sans-serif" font-weight="700" font-size="13">Examination</text>
+        <text x="235" y="45" fill="var(--navy)" font-family="Sora, sans-serif" font-weight="700" font-size="13">Diagnosis</text>
+        <text x="270" y="340" fill="var(--teal)" font-family="Sora, sans-serif" font-weight="700" font-size="13">Investigations</text>
+        <text x="55" y="330" fill="var(--green)" font-family="Sora, sans-serif" font-weight="700" font-size="13">Treatment</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<div class="statbar">
+  <div class="wrap statgrid">
+    <div><div class="num">10+ yrs</div><div class="label">Clinical &amp; histopathology practice</div></div>
+    <div><div class="num">PhD</div><div class="label">Health Science, SPPU Pune</div></div>
+    <div><div class="num">24+</div><div class="label">Peer-reviewed publications</div></div>
+    <div><div class="num">IAOMP · ASOMP</div><div class="label">Professional affiliations</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <section id="pathway">
+    <div class="section-head">
+      <span class="eyebrow">The Pathway</span>
+      <h2>Every case follows the same complete process — no shortcuts.</h2>
+      <p>A lesion that looks similar to another can have a completely different diagnosis under the microscope. This is why each step is followed in full before a treatment approach is recommended.</p>
+    </div>
+    <div class="path-grid">
+      <div class="path-card" style="--stage-color: var(--blue);"><div class="n">STAGE 1</div><h3>Examination</h3><p>A thorough clinical and radiological examination of the oral cavity — noting the site, size, and character of any lesion, swelling, ulcer, or growth.</p></div>
+      <div class="path-card" style="--stage-color: var(--navy);"><div class="n">STAGE 2</div><h3>Diagnosis</h3><p>Findings are correlated with clinical presentation to reach a provisional diagnosis, using standardised classification and grading where relevant.</p></div>
+      <div class="path-card" style="--stage-color: var(--teal);"><div class="n">STAGE 3</div><h3>Investigations</h3><p>Where needed — biopsy and histopathological analysis, hematological workup, or imaging — to confirm the diagnosis with certainty rather than assumption.</p></div>
+      <div class="path-card" style="--stage-color: var(--green);"><div class="n">STAGE 4</div><h3>Treatment</h3><p>A treatment approach suited to the confirmed diagnosis, explained clearly, with counselling and follow-up built into the plan.</p></div>
+    </div>
+  </section>
+
+  <section id="conditions">
+    <div class="section-head">
+      <span class="eyebrow">Areas of Expertise</span>
+      <h2>Conditions seen and managed.</h2>
+    </div>
+    <div class="cond-grid">
+      <div class="cond-pill"><span class="dot"></span>Oral Potentially Malignant Disorders (OPMD)</div>
+      <div class="cond-pill"><span class="dot"></span>Oral cancer (OSCC) screening &amp; diagnosis</div>
+      <div class="cond-pill"><span class="dot"></span>Red &amp; white lesions</div>
+      <div class="cond-pill"><span class="dot"></span>Swellings, growths &amp; cysts</div>
+      <div class="cond-pill"><span class="dot"></span>Pigmented lesions</div>
+      <div class="cond-pill"><span class="dot"></span>Ulcers &amp; non-healing wounds</div>
+      <div class="cond-pill"><span class="dot"></span>TMJ-related concerns</div>
+      <div class="cond-pill"><span class="dot"></span>Oral mucositis grading &amp; management</div>
+      <div class="cond-pill"><span class="dot"></span>Vascular &amp; space infections</div>
+    </div>
+  </section>
+
+  <section id="why">
+    <div class="section-head">
+      <span class="eyebrow">Why Integrative Health</span>
+      <h2>Specialist diagnosis, not a general opinion.</h2>
+    </div>
+    <div class="why-grid">
+      <div class="why-card"><h3><span class="num-badge">1</span>Specialist-level diagnosis</h3><p>MDS in Oral Pathology &amp; Microbiology, PhD, and over a decade of focused practice — not a general dental opinion.</p></div>
+      <div class="why-card"><h3><span class="num-badge">2</span>Backed by published research</h3><p>24+ peer-reviewed publications specifically in oral cancer and OPMD — diagnosis grounded in an active research practice, not guesswork.</p></div>
+      <div class="why-card"><h3><span class="num-badge">3</span>Full pathway, every time</h3><p>No shortcuts from symptom to treatment — examination, diagnosis, investigation, and treatment plan are followed in sequence for every case.</p></div>
+      <div class="why-card"><h3><span class="num-badge">4</span>Ongoing counselling</h3><p>For OPMD and oral cancer patients specifically, care includes counselling and structured follow-up, not a one-time consultation.</p></div>
+    </div>
+  </section>
+
+  <section id="contact" style="padding-bottom:0;">
+    <div class="contact">
+      <div>
+        <span class="eyebrow" style="color:#8FD4C0;">Book a Consultation</span>
+        <h2>Start with an accurate diagnosis.</h2>
+        <p>Consulting at Complete Care, Kharadi, Pune. Reach out directly to schedule an appointment or ask a question.</p>
+      </div>
+      <div class="contact-info">
+        <div>Email — <a href="mailto:drvaibhavladke@gmail.com">drvaibhavladke@gmail.com</a></div>
+        <div>Phone — <a href="tel:+919923132047">+91 99231 32047</a></div>
+        <div>Location — Kharadi, Pune – 411014</div>
+        <div style="margin-top:18px;"><a class="btn btn-primary" href="mailto:drvaibhavladke@gmail.com?subject=Consultation%20Request">Book a consultation</a></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>Integrative Health · Dr. Vaibhav Sunil Ladke, BDS, MDS, PhD · Consulting Oral &amp; Maxillofacial Pathologist</footer>
+
+</body>
+</html>
