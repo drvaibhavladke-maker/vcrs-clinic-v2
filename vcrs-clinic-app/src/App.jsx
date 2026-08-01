@@ -159,10 +159,11 @@ const MODULES = [
       { name: "Provisional / Differential Diagnosis", db: "provisional_diagnosis", type: "textarea", rows: 2 },
       { name: "Histological Examination", db: "histological_exam", type: "textarea", rows: 2 },
       { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
+      { name: "Attachments (Photos / X-Rays / Reports)", db: "attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
       { name: "Status", db: "status", type: "select", options: ["Open", "Finalized"] },
     ],
     listColumns: ["Patient ID", "OPD No.", "Visit Date", "Status"],
-  },
+      },
   {
     key: "clinicalphotos", label: "Clinical Photos", table: "clinical_photos", icon: ImageIcon, category: "Clinical",
     displayIdField: "photo_id", audit: true,
@@ -455,7 +456,8 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
   const buildInitial = () => {
     const f = {};
     module.fields.forEach((field) => {
-      f[field.name] = initial ? initial[field.db] ?? "" : defaultValues?.[field.name] ?? "";
+      const empty = field.type === "multifile" ? [] : "";
+      f[field.name] = initial ? (initial[field.db] ?? empty) : (defaultValues?.[field.name] ?? empty);
     });
     return f;
   };
@@ -516,7 +518,58 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
             </Field>
           );
         }
-     if (field.type === "file") {
+    if (field.type === "multifile") {
+          const items = form[field.name] || [];
+          return (
+            <Field key={field.name} label={field.name}>
+              <input
+                type="file"
+                accept={field.accept || "*/*"}
+                multiple
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length === 0) return;
+                  try {
+                    const uploaded = [];
+                    for (const file of files) {
+                      const url = await uploadFile(file, field.bucket || "documents");
+                      uploaded.push(url);
+                    }
+                    setForm((f) => ({ ...f, [field.name]: [...(f[field.name] || []), ...uploaded] }));
+                  } catch (err) {
+                    alert("Upload failed: " + err.message);
+                  }
+                }}
+                className="w-full text-sm"
+              />
+              {items.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {items.map((url, i) => {
+                    const isImg = /\.(png|jpe?g|gif|webp)$/i.test(url);
+                    return (
+                      <div key={i} className="relative">
+                        {isImg ? (
+                          <img src={url} alt="Attachment" className="rounded-lg object-cover" style={{ width: "72px", height: "72px" }} />
+                        ) : (
+                          <a href={url} target="_blank" rel="noreferrer" className="flex items-center justify-center rounded-lg" style={{ width: "72px", height: "72px", background: COLORS.sage }}>
+                            <FileText size={22} style={{ color: COLORS.teal }} />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, [field.name]: f[field.name].filter((_, idx) => idx !== i) }))}
+                          className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center text-white"
+                          style={{ width: "18px", height: "18px", background: COLORS.rose, fontSize: "11px", lineHeight: "18px" }}
+                        >×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Field>
+          );
+        }
+      if (field.type === "file") {
           const isImage = field.accept?.includes("image") && /\.(png|jpe?g|gif|webp)$/i.test(form[field.name] || "");
           return (
             <Field key={field.name} label={field.name}>
@@ -1103,7 +1156,10 @@ function PrintDocument({ type, record, patient, data }) {
               {record.habit && <li>Habit: {record.habit}</li>}
             </ul>
 
-            <p style={{ marginBottom: "4px", fontWeight: 700 }}>On Examination:</p>
+           <p style={{ marginBottom: "4px", fontWeight: 700 }}>On Examination:</p>
+            {getSetting(data, "oral_cavity_diagram_url") && (
+              <img src={getSetting(data, "oral_cavity_diagram_url")} alt="Oral cavity reference diagram" style={{ maxWidth: "320px", margin: "0 0 10px" }} />
+            )}
             {record.hard_tissue_exam && <p style={{ marginBottom: "6px" }}><strong>Hard Tissue Examination:</strong> {record.hard_tissue_exam}{record.teeth_numbers && ` (Teeth: ${record.teeth_numbers})`}</p>}
             {record.soft_tissue_exam && <p style={{ marginBottom: "10px" }}><strong>Soft Tissue Examination:</strong> {record.soft_tissue_exam}</p>}
 
@@ -1127,8 +1183,23 @@ function PrintDocument({ type, record, patient, data }) {
             {record.provisional_diagnosis && <p style={{ marginBottom: "10px" }}><strong>Provisional / Differential Diagnosis:</strong> {record.provisional_diagnosis}</p>}
             {record.histological_exam && <p style={{ marginBottom: "10px" }}><strong>Histological Examination:</strong> {record.histological_exam}</p>}
             {record.final_diagnosis && <p style={{ marginBottom: "10px" }}><strong>Final Diagnosis:</strong> <span style={{ fontWeight: 700 }}>{record.final_diagnosis}</span></p>}
+            {Array.isArray(record.attachments) && record.attachments.length > 0 && (
+              <div style={{ marginTop: "14px" }}>
+                <strong>Attachments (Photos / X-Rays / Reports):</strong>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                  {record.attachments.map((url, i) => (
+                    /\.(png|jpe?g|gif|webp)$/i.test(url) ? (
+                      <img key={i} src={url} alt="Attachment" style={{ width: "90px", height: "90px", objectFit: "cover", borderRadius: "6px", border: "1px solid #DCE3DD" }} />
+                    ) : (
+                      <a key={i} href={url} target="_blank" rel="noreferrer" style={{ fontSize: "11px", color: "#1F5F52", textDecoration: "underline" }}>{fileNameFromUrl(url)}</a>
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
+      )}
       )}
 
     <div style={{ marginTop: "50px", textAlign: "right", fontSize: "13px" }}>
