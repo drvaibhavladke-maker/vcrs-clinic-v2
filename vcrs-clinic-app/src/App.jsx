@@ -969,49 +969,28 @@ function PrintDocument({ type, record, patient, data }) {
 
   return (
     <div id="printable-area" style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
-    {type === "histopathology" ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
-          <div style={{ flex: 1, textAlign: "left" }}>
-            {getSetting(data, "logo_left_url") && (
-              <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "70px", display: "block" }} />
-            )}
-          </div>
-          <div style={{ flex: 2, textAlign: "center" }}>
-            {doctorName && <p style={{ fontSize: "16px", margin: 0, fontWeight: 700 }}>{doctorName}{doctorQualification ? `. ${doctorQualification}` : ""}</p>}
-            {getSetting(data, "doctor_registration") && <p style={{ fontSize: "12px", margin: "4px 0 0", fontWeight: 600 }}>Registration No.: {getSetting(data, "doctor_registration")}</p>}
-            {getSetting(data, "doctor_designation") && <p style={{ fontSize: "12px", margin: "4px 0 0", fontWeight: 600 }}>{getSetting(data, "doctor_designation")}</p>}
-            {(clinicPhone || getSetting(data, "doctor_email")) && (
-              <p style={{ fontSize: "11.5px", margin: "4px 0 0", fontWeight: 600 }}>
-                {clinicPhone && `Contact: ${clinicPhone}`}{clinicPhone && getSetting(data, "doctor_email") ? " / " : ""}{getSetting(data, "doctor_email") && `Email Id: ${getSetting(data, "doctor_email")}`}
-              </p>
-            )}
-          </div>
-          <div style={{ flex: 1, textAlign: "right" }}>
-            {getSetting(data, "logo_right_url") && (
-              <img src={getSetting(data, "logo_right_url")} alt="Integrative Health Logo" style={{ height: "70px", marginLeft: "auto", display: "block" }} />
-            )}
-          </div>
+   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
+        <div style={{ flex: 1, textAlign: "left" }}>
+          {getSetting(data, "logo_left_url") && (
+            <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "95px", display: "block" }} />
+          )}
         </div>
-      ) : (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
-          <div style={{ flex: 1.3, textAlign: "left" }}>
-            {doctorName && <p style={{ fontSize: "13px", margin: 0, fontWeight: 700 }}>{doctorName}</p>}
-            {doctorQualification && <p style={{ fontSize: "10.5px", margin: "3px 0 0", color: "#4A615C" }}>• {doctorQualification}</p>}
-            {getSetting(data, "doctor_designation") && <p style={{ fontSize: "10.5px", margin: "2px 0 0", color: "#4A615C" }}>• {getSetting(data, "doctor_designation")}</p>}
-            {getSetting(data, "doctor_registration") && <p style={{ fontSize: "10.5px", margin: "2px 0 0", color: "#4A615C" }}>• Registration No.: {getSetting(data, "doctor_registration")}</p>}
-          </div>
-          <div style={{ flex: 1.5, textAlign: "center" }}>
-            <h1 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", margin: 0 }}>{clinicName}</h1>
-            {clinicAddress && <p style={{ fontSize: "11px", margin: "4px 0 0", color: "#4A615C" }}>{clinicAddress}</p>}
-            {clinicPhone && <p style={{ fontSize: "11px", margin: "2px 0 0", color: "#4A615C" }}>{clinicPhone}</p>}
-          </div>
-          <div style={{ flex: 1, textAlign: "right" }}>
-            {getSetting(data, "clinic_logo_url") && (
-              <img src={getSetting(data, "clinic_logo_url")} alt="Clinic Logo" style={{ height: "90px", marginLeft: "auto", display: "block" }} />
-            )}
-          </div>
+        <div style={{ flex: 2, textAlign: "center" }}>
+          {doctorName && <p style={{ fontSize: "14px", margin: 0, fontWeight: 700 }}>{doctorName}{doctorQualification ? `. ${doctorQualification}` : ""}</p>}
+          {getSetting(data, "doctor_registration") && <p style={{ fontSize: "10.5px", margin: "3px 0 0", fontWeight: 600 }}>Registration No.: {getSetting(data, "doctor_registration")}</p>}
+          {getSetting(data, "doctor_designation") && <p style={{ fontSize: "10.5px", margin: "3px 0 0", fontWeight: 600 }}>{getSetting(data, "doctor_designation")}</p>}
+          {(clinicPhone || getSetting(data, "doctor_email")) && (
+            <p style={{ fontSize: "10px", margin: "3px 0 0", fontWeight: 600 }}>
+              {clinicPhone && `Contact: ${clinicPhone}`}{clinicPhone && getSetting(data, "doctor_email") ? " / " : ""}{getSetting(data, "doctor_email") && `Email Id: ${getSetting(data, "doctor_email")}`}
+            </p>
+          )}
         </div>
-      )}
+        <div style={{ flex: 1, textAlign: "right" }}>
+          {getSetting(data, "logo_right_url") && (
+            <img src={getSetting(data, "logo_right_url")} alt="Integrative Health Logo" style={{ height: "95px", marginLeft: "auto", display: "block" }} />
+          )}
+        </div>
+      </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "16px" }}>
         <div>
           <strong>Patient:</strong> {recordLabel(MODULES_BY_KEY.patients, patient)}<br />
