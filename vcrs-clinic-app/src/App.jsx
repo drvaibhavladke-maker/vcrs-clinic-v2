@@ -945,8 +945,11 @@ function PrintDocument({ type, record, patient, data }) {
   return (
     <div id="printable-area" style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
       <div style={{ textAlign: "center", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
+        {getSetting(data, "clinic_logo_url") && (
+          <img src={getSetting(data, "clinic_logo_url")} alt="Clinic Logo" style={{ height: "60px", margin: "0 auto 8px", display: "block" }} />
+        )}
         <h1 style={{ fontFamily: "Fraunces, serif", fontSize: "24px", margin: 0 }}>{clinicName}</h1>
-        {clinicAddress && <p style={{ fontSize: "12px", margin: "4px 0 0", color: "#4A615C" }}>{clinicAddress}</p>}
+      {clinicAddress && <p style={{ fontSize: "12px", margin: "4px 0 0", color: "#4A615C" }}>{clinicAddress}</p>}
         {clinicPhone && <p style={{ fontSize: "12px", margin: "2px 0 0", color: "#4A615C" }}>{clinicPhone}</p>}
         {(doctorName || doctorQualification) && (
           <p style={{ fontSize: "13px", margin: "8px 0 0", fontWeight: 600 }}>{doctorName} {doctorQualification && `— ${doctorQualification}`}</p>
