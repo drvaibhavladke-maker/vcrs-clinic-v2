@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Printer,
+ TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, Printer,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -117,6 +117,23 @@ const MODULES = [
       { name: "Status", db: "status", type: "select", options: ["Pending", "Completed"] },
     ],
     listColumns: ["Patient ID", "Test Name", "Result", "Status"],
+  },
+  {
+    key: "histopathology", label: "Histopathology", table: "histopathology", icon: Layers, category: "Clinical",
+    displayIdField: "histo_id", audit: true,
+    fields: [
+      { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
+      { name: "Histopathology No.", db: "histopath_no", type: "text" },
+      { name: "Referred By", db: "referred_by", type: "text" },
+      { name: "Received Date", db: "received_date", type: "date" },
+      { name: "Report Date", db: "report_date", type: "date" },
+      { name: "Gross Pathology", db: "gross_pathology", type: "textarea", rows: 3 },
+      { name: "Microscopic / Biopsy Report", db: "biopsy_report", type: "textarea", rows: 8 },
+      { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
+      { name: "Note", db: "note", type: "textarea", rows: 2 },
+      { name: "Status", db: "status", type: "select", options: ["Pending", "Finalized"] },
+    ],
+    listColumns: ["Patient ID", "Histopathology No.", "Report Date", "Status"],
   },
   {
     key: "clinicalphotos", label: "Clinical Photos", table: "clinical_photos", icon: ImageIcon, category: "Clinical",
@@ -457,10 +474,10 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
             </Field>
           );
         }
-        if (field.type === "textarea") {
-          return <Field key={field.name} label={field.name} required={field.required}><TextArea rows={2} value={form[field.name]} onChange={set(field.name)} required={field.required} disabled={locked} /></Field>;
-        }
-        if (field.computed) {
+      if (field.type === "textarea") {
+          return <Field key={field.name} label={field.name} required={field.required}><TextArea rows={field.rows || 2} value={form[field.name]} onChange={set(field.name)} required={field.required} disabled={locked} /></Field>;
+        } 
+      if (field.computed) {
           const amt = parseFloat(form["Amount"]) || 0, disc = parseFloat(form["Discount"]) || 0, tax = parseFloat(form["Tax"]) || 0;
           return (
             <Field key={field.name} label={field.name}>
@@ -604,8 +621,9 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
 /* ---------------------------------------------------------------
    Patient chart
 ------------------------------------------------------------------ */
-const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "billing", "payments", "clinicalphotos", "samples"];
-
+const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "billing", "payments", "clinicalphotos", "samples"];
+const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology"];
+const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology" };
 function ChartSection({ title, icon: Icon, onAdd, empty, children, count }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : !!children;
   return (
@@ -621,8 +639,8 @@ function ChartSection({ title, icon: Icon, onAdd, empty, children, count }) {
   );
 }
 
-function PatientDetail({ patient, data, onBack, onEditPatient, openAdd, openEdit, openDelete }) {
-  return (
+function PatientDetail({ patient, data, onBack, onEditPatient, openAdd, openEdit, openDelete, openPrint }) {
+return (
     <div>
       <button onClick={onBack} className="inline-flex items-center gap-1 text-sm font-medium mb-4" style={{ color: COLORS.teal }}><ChevronLeft size={16} /> All patients</button>
       <div className="rounded-xl p-5 mb-6 flex items-start justify-between" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
@@ -660,6 +678,7 @@ function PatientDetail({ patient, data, onBack, onEditPatient, openAdd, openEdit
                   {(module.listColumns || []).filter((c) => c !== "Patient ID" && c !== "Status").slice(0, 2).map((c) => displayValue(module, c, r, data)).filter((v) => v !== "—").join(" · ") || recordLabel(module, r)}
                 </span>
                 <StatusBadge status={r.status} />
+                {PRINTABLE_MODULES.includes(key) && <IconBtn onClick={() => openPrint({ type: PRINT_TYPE_BY_MODULE[key], record: r })} title="Print"><Printer size={14} /></IconBtn>}
                 <IconBtn onClick={() => openEdit(key, r)} title="Edit"><Edit2 size={14} /></IconBtn>
                 <IconBtn onClick={() => openDelete(key, r)} title="Delete" danger><Trash2 size={14} /></IconBtn>
               </div>
@@ -973,10 +992,12 @@ function PrintDocument({ type, record, patient, data }) {
           {patient?.age && <>Age/Gender: {patient.age} / {patient.gender}<br /></>}
           {patient?.patient_id && <>Patient ID: {patient.patient_id}</>}
         </div>
-        <div style={{ textAlign: "right" }}>
-          <strong>Date:</strong> {fmtDate(record.created_on || todayISO())}<br />
-          <strong>{type === "bill" ? "Bill No" : "Rx No"}:</strong> {type === "bill" ? record.bill_id : record.prescription_id}
-        </div>
+      <div style={{ textAlign: "right" }}>
+          <strong>Date:</strong> {fmtDate(type === "histopathology" ? (record.report_date || record.created_on) : record.created_on || todayISO())}<br />
+          <strong>{type === "bill" ? "Bill No" : type === "prescription" ? "Rx No" : "Histopath No"}:</strong> {type === "bill" ? record.bill_id : type === "prescription" ? record.prescription_id : (record.histopath_no || record.histo_id)}
+          {type === "histopathology" && record.received_date && <><br /><strong>Received:</strong> {fmtDate(record.received_date)}</>}
+          {type === "histopathology" && record.referred_by && <><br /><strong>Referred by:</strong> {record.referred_by}</>}
+        </div> 
       </div>
 
       {type === "bill" ? (
@@ -993,7 +1014,7 @@ function PrintDocument({ type, record, patient, data }) {
             </tbody>
           </table>
         </>
-      ) : (
+      ) : type === "prescription" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "20px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px" }}>℞ Prescription</h2>
           <div style={{ fontSize: "13px", marginTop: "12px", lineHeight: 1.8 }}>
@@ -1002,14 +1023,49 @@ function PrintDocument({ type, record, patient, data }) {
             {record.instructions && <p><strong>Instructions:</strong> {record.instructions}</p>}
           </div>
         </>
+      ) : (
+        <>
+          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Histopathology Report</h2>
+          <div style={{ fontSize: "13px", marginTop: "14px", lineHeight: 1.7 }}>
+            {record.gross_pathology && (
+              <div style={{ marginBottom: "14px" }}>
+                <strong>Gross Pathology:</strong>
+                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.gross_pathology}</p>
+              </div>
+            )}
+            {record.biopsy_report && (
+              <div style={{ marginBottom: "14px" }}>
+                <strong>Microscopic / Biopsy Report:</strong>
+                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.biopsy_report}</p>
+              </div>
+            )}
+            {record.final_diagnosis && (
+              <div style={{ marginBottom: "14px" }}>
+                <strong>Final Diagnosis: </strong>
+                <span style={{ fontWeight: 700 }}>{record.final_diagnosis}</span>
+              </div>
+            )}
+            {record.note && (
+              <div style={{ marginBottom: "14px" }}>
+                <em>Note: {record.note}</em>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
     <div style={{ marginTop: "50px", textAlign: "right", fontSize: "13px" }}>
         {getSetting(data, "doctor_signature_url") && (
           <img src={getSetting(data, "doctor_signature_url")} alt="Signature" style={{ height: "50px", marginLeft: "auto", display: "block" }} />
         )}
-        <p style={{ borderTop: "1px solid #16302B", display: "inline-block", paddingTop: "4px", marginTop: getSetting(data, "doctor_signature_url") ? "4px" : "60px" }}>Doctor's Signature</p>
-      </div>  
+       <p style={{ borderTop: "1px solid #16302B", display: "inline-block", paddingTop: "4px", marginTop: getSetting(data, "doctor_signature_url") ? "4px" : "60px" }}>Doctor's Signature</p>
+      </div>
+      {type === "histopathology" && getSetting(data, "associated_labs") && (
+        <div style={{ marginTop: "24px", fontSize: "11px", color: "#4A615C", whiteSpace: "pre-line" }}>
+          <strong style={{ color: "#16302B" }}>Associated with</strong>
+          <p style={{ margin: "4px 0 0" }}>{getSetting(data, "associated_labs")}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1304,8 +1360,8 @@ const [loadError, setLoadError] = useState("");
           <PatientsList patients={filteredPatients} search={search} setSearch={setSearch} onAdd={() => setModal({ moduleKey: "patients" })} onOpen={goToPatient} onEdit={(p) => setModal({ moduleKey: "patients", initial: p })} onDelete={(p) => openDelete("patients", p)} />
         )}
         {view === "patients" && activePatient && (
-          <PatientDetail patient={activePatient} data={data} onBack={() => setActivePatient(null)} onEditPatient={() => setModal({ moduleKey: "patients", initial: activePatient })} openAdd={openAdd} openEdit={openEdit} openDelete={openDelete} />
-        )}
+    <PatientDetail patient={activePatient} data={data} onBack={() => setActivePatient(null)} onEditPatient={() => setModal({ moduleKey: "patients", initial: activePatient })} openAdd={openAdd} openEdit={openEdit} openDelete={openDelete} openPrint={setPrintTarget} />      
+    )}
       {MODULES.filter((m) => m.key !== "patients").map((m) => view === m.key && (
           <GenericModuleView
             key={m.key}
@@ -1316,15 +1372,15 @@ const [loadError, setLoadError] = useState("");
             onEdit={(r) => openEdit(m.key, r)}
             onDelete={(r) => openDelete(m.key, r)}
             onOpenFk={openFkTarget}
-            onPrint={(m.key === "billing" || m.key === "prescriptions") ? (r) => setPrintTarget({ type: m.key === "billing" ? "bill" : "prescription", record: r }) : undefined}
+            onPrint={PRINTABLE_MODULES.includes(m.key) ? (r) => setPrintTarget({ type: PRINT_TYPE_BY_MODULE[m.key], record: r }) : undefined}
             noDeps={m.fields.some((f) => f.type === "fk" && f.module === "patients") && patients.length === 0}
           />
         ))}  
       </main>
 
       {modal && (
-        <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations"].includes(modal.moduleKey)}>
-          <GenericForm module={MODULES_BY_KEY[modal.moduleKey]} initial={modal.initial} data={data} defaultValues={modal.defaultValues} lockedFields={modal.lockedFields}
+      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology"].includes(modal.moduleKey)}>  
+      <GenericForm module={MODULES_BY_KEY[modal.moduleKey]} initial={modal.initial} data={data} defaultValues={modal.defaultValues} lockedFields={modal.lockedFields}
             fkFilter={modal.moduleKey === "payments" && modal.defaultValues?.["Patient ID"] ? { "Bill ID": (opts) => opts.filter((b) => b.patient_id === modal.defaultValues["Patient ID"]) } : undefined}
             onSave={(payload) => saveRecord(modal.moduleKey, payload)} saving={saving} />
         </Modal>
