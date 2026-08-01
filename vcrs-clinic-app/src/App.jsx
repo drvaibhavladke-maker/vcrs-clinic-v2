@@ -1200,8 +1200,7 @@ function PrintDocument({ type, record, patient, data }) {
           </div>
         </>
       )}
-      )}
-
+    
     <div style={{ marginTop: "50px", textAlign: "right", fontSize: "13px" }}>
         {getSetting(data, "doctor_signature_url") && (
           <img src={getSetting(data, "doctor_signature_url")} alt="Signature" style={{ height: "50px", marginLeft: "auto", display: "block" }} />
