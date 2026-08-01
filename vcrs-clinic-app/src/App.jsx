@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, Printer,
+ TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Printer,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -135,6 +135,33 @@ const MODULES = [
       { name: "Status", db: "status", type: "select", options: ["Pending", "Finalized"] },
     ],
     listColumns: ["Patient ID", "Histopathology No.", "Report Date", "Status"],
+  },
+  {
+    key: "casepapers", label: "Case Papers", table: "case_papers", icon: ClipboardList, category: "Clinical",
+    displayIdField: "case_id", audit: true,
+    fields: [
+      { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
+      { name: "OPD No.", db: "opd_no", type: "text" },
+      { name: "Visit Date", db: "visit_date", type: "date" },
+      { name: "Referred By", db: "referred_by", type: "text" },
+      { name: "Chief Complaint", db: "chief_complaint", type: "textarea", rows: 2 },
+      { name: "CVS / BP", db: "cvs_bp", type: "text" },
+      { name: "Endocrine", db: "endocrine", type: "text" },
+      { name: "Respiratory (RS)", db: "respiratory", type: "text" },
+      { name: "GIT", db: "git", type: "text" },
+      { name: "Allergy", db: "allergy", type: "text" },
+      { name: "Habit", db: "habit", type: "text" },
+      { name: "Hard Tissue Examination", db: "hard_tissue_exam", type: "textarea", rows: 2 },
+      { name: "Teeth Number(s)", db: "teeth_numbers", type: "text" },
+      { name: "Soft Tissue Examination", db: "soft_tissue_exam", type: "textarea", rows: 3 },
+      { name: "Mucositis Grade", db: "mucositis_grade", type: "select", options: ["Not Applicable", "0", "1", "2", "3", "4"] },
+      { name: "Clinical / Radiological Presentation", db: "clinical_presentation", type: "textarea", rows: 3 },
+      { name: "Provisional / Differential Diagnosis", db: "provisional_diagnosis", type: "textarea", rows: 2 },
+      { name: "Histological Examination", db: "histological_exam", type: "textarea", rows: 2 },
+      { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
+      { name: "Status", db: "status", type: "select", options: ["Open", "Finalized"] },
+    ],
+    listColumns: ["Patient ID", "OPD No.", "Visit Date", "Status"],
   },
   {
     key: "clinicalphotos", label: "Clinical Photos", table: "clinical_photos", icon: ImageIcon, category: "Clinical",
@@ -622,9 +649,9 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
 /* ---------------------------------------------------------------
    Patient chart
 ------------------------------------------------------------------ */
-const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "billing", "payments", "clinicalphotos", "samples"];
-const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology"];
-const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology" };
+const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "casepapers", "billing", "payments", "clinicalphotos", "samples"];
+const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology", "casepapers"];
+const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology", casepapers: "casepaper" };
 function ChartSection({ title, icon: Icon, onAdd, empty, children, count }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : !!children;
   return (
@@ -998,10 +1025,10 @@ function PrintDocument({ type, record, patient, data }) {
           {patient?.patient_id && <>Patient ID: {patient.patient_id}</>}
         </div>
       <div style={{ textAlign: "right" }}>
-          <strong>Date:</strong> {fmtDate(type === "histopathology" ? (record.report_date || record.created_on) : record.created_on || todayISO())}<br />
-          <strong>{type === "bill" ? "Bill No" : type === "prescription" ? "Rx No" : "Histopath No"}:</strong> {type === "bill" ? record.bill_id : type === "prescription" ? record.prescription_id : (record.histopath_no || record.histo_id)}
-          {type === "histopathology" && record.received_date && <><br /><strong>Received:</strong> {fmtDate(record.received_date)}</>}
-          {type === "histopathology" && record.referred_by && <><br /><strong>Referred by:</strong> {record.referred_by}</>}
+          <strong>Date:</strong> {fmtDate(type === "histopathology" ? (record.report_date || record.created_on) : type === "casepaper" ? (record.visit_date || record.created_on) : record.created_on || todayISO())}<br />
+          <strong>{type === "bill" ? "Bill No" : type === "prescription" ? "Rx No" : type === "casepaper" ? "OPD No" : "Histopath No"}:</strong> {type === "bill" ? record.bill_id : type === "prescription" ? record.prescription_id : type === "casepaper" ? (record.opd_no || record.case_id) : (record.histopath_no || record.histo_id)}
+          {(type === "histopathology" || type === "casepaper") && record.received_date && <><br /><strong>Received:</strong> {fmtDate(record.received_date)}</>}
+          {(type === "histopathology" || type === "casepaper") && record.referred_by && <><br /><strong>Referred by:</strong> {record.referred_by}</>}
         </div> 
       </div>
 
@@ -1028,10 +1055,10 @@ function PrintDocument({ type, record, patient, data }) {
             {record.instructions && <p><strong>Instructions:</strong> {record.instructions}</p>}
           </div>
         </>
-      ) : (
+      ) : type === "histopathology" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Histopathology Report</h2>
-          <div style={{ fontSize: "13px", marginTop: "14px", lineHeight: 1.7 }}>
+      <div style={{ fontSize: "13px", marginTop: "14px", lineHeight: 1.7 }}>
             {record.gross_pathology && (
               <div style={{ marginBottom: "14px" }}>
                 <strong>Gross Pathology:</strong>
@@ -1058,6 +1085,48 @@ function PrintDocument({ type, record, patient, data }) {
                 <em>Note: {record.note}</em>
               </div>
             )}
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Case Paper</h2>
+          <div style={{ fontSize: "12.5px", marginTop: "12px", lineHeight: 1.6 }}>
+            {record.chief_complaint && <p style={{ marginBottom: "10px" }}><strong>Chief Complaint:</strong> {record.chief_complaint}</p>}
+
+            <p style={{ marginBottom: "4px", fontWeight: 700 }}>Medical History:</p>
+            <ul style={{ margin: "0 0 10px", paddingLeft: "18px" }}>
+              {record.cvs_bp && <li>CVS: {record.cvs_bp}</li>}
+              {record.endocrine && <li>Endocrine: {record.endocrine}</li>}
+              {record.respiratory && <li>R.S.: {record.respiratory}</li>}
+              {record.git && <li>GIT: {record.git}</li>}
+              {record.allergy && <li>Allergy: {record.allergy}</li>}
+              {record.habit && <li>Habit: {record.habit}</li>}
+            </ul>
+
+            <p style={{ marginBottom: "4px", fontWeight: 700 }}>On Examination:</p>
+            {record.hard_tissue_exam && <p style={{ marginBottom: "6px" }}><strong>Hard Tissue Examination:</strong> {record.hard_tissue_exam}{record.teeth_numbers && ` (Teeth: ${record.teeth_numbers})`}</p>}
+            {record.soft_tissue_exam && <p style={{ marginBottom: "10px" }}><strong>Soft Tissue Examination:</strong> {record.soft_tissue_exam}</p>}
+
+            {record.clinical_presentation && <p style={{ marginBottom: "10px" }}><strong>Clinical / Radiological Presentation:</strong> {record.clinical_presentation}</p>}
+
+            {record.mucositis_grade && record.mucositis_grade !== "Not Applicable" && (
+              <div style={{ marginBottom: "10px" }}>
+                <strong>Mucositis Grade (WHO): {record.mucositis_grade}</strong>
+                <table style={{ width: "100%", fontSize: "10.5px", marginTop: "4px", borderCollapse: "collapse", border: "1px solid #DCE3DD" }}>
+                  <tbody>
+                    <tr><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>0</td><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>Mucous membrane without change</td></tr>
+                    <tr><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>1</td><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>Mild inflammation, mild pain, no anti-inflammatory medication needed</td></tr>
+                    <tr><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>2</td><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>Point mucositis, mild serous discharge, mild pain needing pain killer</td></tr>
+                    <tr><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>3</td><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>Diffused continuous mucositis, fibrous discharge, severe pain needing pain killer</td></tr>
+                    <tr><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>4</td><td style={{ padding: "3px 6px", border: "1px solid #DCE3DD" }}>Wound and bleeding or necrosis</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {record.provisional_diagnosis && <p style={{ marginBottom: "10px" }}><strong>Provisional / Differential Diagnosis:</strong> {record.provisional_diagnosis}</p>}
+            {record.histological_exam && <p style={{ marginBottom: "10px" }}><strong>Histological Examination:</strong> {record.histological_exam}</p>}
+            {record.final_diagnosis && <p style={{ marginBottom: "10px" }}><strong>Final Diagnosis:</strong> <span style={{ fontWeight: 700 }}>{record.final_diagnosis}</span></p>}
           </div>
         </>
       )}
@@ -1387,7 +1456,7 @@ const [loadError, setLoadError] = useState("");
       </main>
 
       {modal && (
-      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology"].includes(modal.moduleKey)}>  
+      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology", "casepapers"].includes(modal.moduleKey)}>  
       <GenericForm module={MODULES_BY_KEY[modal.moduleKey]} initial={modal.initial} data={data} defaultValues={modal.defaultValues} lockedFields={modal.lockedFields}
             fkFilter={modal.moduleKey === "payments" && modal.defaultValues?.["Patient ID"] ? { "Bill ID": (opts) => opts.filter((b) => b.patient_id === modal.defaultValues["Patient ID"]) } : undefined}
             onSave={(payload) => saveRecord(modal.moduleKey, payload)} saving={saving} />
