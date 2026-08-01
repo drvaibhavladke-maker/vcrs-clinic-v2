@@ -728,9 +728,14 @@ function Dashboard({ data, goToPatient, setView }) {
   ];
   return (
     <div>
-      <header className="mb-6">
-        <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-2xl font-semibold">VCRS Clinic Suite</h1>
-        <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
+      <header className="mb-6 flex items-center gap-3">
+        {getSetting(data, "clinic_logo_url") && (
+          <img src={getSetting(data, "clinic_logo_url")} alt="Clinic Logo" style={{ height: "44px" }} />
+        )}
+        <div>
+          <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-2xl font-semibold">{getSetting(data, "clinic_name") || "VCRS Clinic Suite"}</h1>
+          <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
+        </div>
       </header>
       <div className="grid grid-cols-5 gap-3 mb-8">
         {stats.map((s) => {
@@ -1047,6 +1052,16 @@ function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [branding, setBranding] = useState({ name: "", logo: "" });
+
+  useEffect(() => {
+    supabase.from("settings").select("*").in("key", ["clinic_name", "clinic_logo_url"]).then(({ data }) => {
+      setBranding({
+        name: data?.find((s) => s.key === "clinic_name")?.value || "",
+        logo: data?.find((s) => s.key === "clinic_logo_url")?.value || "",
+      });
+    });
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -1061,10 +1076,14 @@ function LoginScreen() {
     <div className="min-h-screen flex items-center justify-center p-6" style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif" }}>
       <style>{FONT_IMPORT}</style>
       <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ background: COLORS.teal }}>
-          <Stethoscope size={18} color="#fff" />
-        </div>
-        <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold mb-1">VCRS Clinic Suite</h1>
+        {branding.logo ? (
+          <img src={branding.logo} alt="Clinic Logo" className="mb-4" style={{ height: "56px" }} />
+        ) : (
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4" style={{ background: COLORS.teal }}>
+            <Stethoscope size={18} color="#fff" />
+          </div>
+        )}
+        <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold mb-1">{branding.name || "VCRS Clinic Suite"}</h1>
         <p className="text-sm mb-5" style={{ color: COLORS.inkSoft }}>Sign in to continue.</p>
         <form onSubmit={submit} className="space-y-4">
           <Field label="Email">
