@@ -1,5 +1,8 @@
 {
   "crons": [
     { "path": "/api/send-reminders", "schedule": "30 3 * * *" }
+  ],
+  "rewrites": [
+    { "source": "/((?!api/|integrative-health.html).*)", "destination": "/index.html" }
   ]
 }
