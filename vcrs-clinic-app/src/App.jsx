@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Printer,
+TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Menu, Printer,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -668,7 +668,7 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
           {cols.map((c) => <span key={c} className="truncate">{c}</span>)}<span></span>
           </div>
           {filtered.map((r) => (
-          <div key={r.id} className="grid items-center px-5 py-3 text-sm" style={{ gridTemplateColumns: `repeat(${cols.length}, 1fr) 104px`, borderBottom: `1px solid ${COLORS.line}` }}> 
+          <div key={r.id} className="grid items-center px-5 py-3 text-sm" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(120px, 1fr)) 104px`, minWidth: "700px", borderBottom: `1px solid ${COLORS.line}` }}>
           {cols.map((c) => {
                 const val = displayValue(module, c, r, data);
                 const fieldDef = module.fields.find((f) => f.name === c);
@@ -724,8 +724,8 @@ function PatientDetail({ patient, data, onBack, onEditPatient, openAdd, openEdit
 return (
     <div>
       <button onClick={onBack} className="inline-flex items-center gap-1 text-sm font-medium mb-4" style={{ color: COLORS.teal }}><ChevronLeft size={16} /> All patients</button>
-      <div className="rounded-xl p-5 mb-6 flex items-start justify-between" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
-        <div className="flex items-start gap-4">
+      <div className="rounded-xl p-5 mb-6 flex items-start justify-between flex-wrap gap-3" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+      <div className="flex items-start gap-4">
           <div className="w-14 h-14 rounded-full flex items-center justify-center text-white text-lg font-semibold flex-shrink-0" style={{ background: hueFor(patient.id), fontFamily: "Fraunces, serif" }}>
             {initials(recordLabel(MODULES_BY_KEY.patients, patient))}
           </div>
@@ -788,7 +788,7 @@ function PatientsList({ patients, search, setSearch, onAdd, onOpen, onEdit, onDe
       {patients.length === 0 ? (
         <EmptyState icon={Users} title="No patients yet" subtitle="Add your first patient to start building their chart." action={<PrimaryButton onClick={onAdd}><Plus size={16} /> New patient</PrimaryButton>} />
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {patients.map((p) => (
             <div key={p.id} className="rounded-xl p-4 flex items-center gap-3 cursor-pointer transition-shadow" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}
               onClick={() => onOpen(p)} onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 2px 10px rgba(22,48,43,0.07)")} onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}>
@@ -837,8 +837,8 @@ function Dashboard({ data, goToPatient, setView }) {
           <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
         </div>
       </header>
-      <div className="grid grid-cols-5 gap-3 mb-8">
-        {stats.map((s) => {
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+      {stats.map((s) => {
           const Icon = s.icon;
           return (
             <div key={s.label} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
@@ -848,9 +848,9 @@ function Dashboard({ data, goToPatient, setView }) {
           );
         })}
       </div>
-      <div className="rounded-xl overflow-hidden" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
-        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${COLORS.line}` }}>
-          <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="font-semibold text-sm">Today's queue</h2>
+     <div className="rounded-xl overflow-x-auto" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+          <div className="grid px-5 py-2.5 text-xs font-semibold" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(120px, 1fr)) 104px`, minWidth: "700px", background: COLORS.surface, color: COLORS.inkSoft, borderBottom: `1px solid ${COLORS.line}` }}>
+      <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="font-semibold text-sm">Today's queue</h2>
           <button onClick={() => setView("appointments")} className="text-xs font-semibold" style={{ color: COLORS.teal }}>View all</button>
         </div>
         {todaysAppts.length === 0 ? <p className="text-sm px-5 py-8 text-center" style={{ color: COLORS.inkSoft }}>Nothing on the books for today.</p> : (
@@ -1313,6 +1313,7 @@ function LoginScreen() {
 ------------------------------------------------------------------ */
 export default function App() {
   const [printTarget, setPrintTarget] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState(undefined);
 const [loaded, setLoaded] = useState(false);
 const [loadError, setLoadError] = useState("");
@@ -1455,17 +1456,22 @@ const [loadError, setLoadError] = useState("");
     );
   }
   return (
-    <div style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif", minHeight: "100vh" }} className="w-full flex">
+    <div style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif", minHeight: "100vh" }} className="w-full flex flex-col md:flex-row">
       <style>{FONT_IMPORT}</style>
-      <aside style={{ background: COLORS.tealDeep, width: "236px", flexShrink: 0 }} className="flex flex-col py-5 overflow-y-auto">
-        <div className="px-5 mb-5 flex items-center gap-2">
+      <div className="md:hidden flex items-center justify-between px-4 py-3" style={{ background: COLORS.tealDeep }}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: COLORS.teal }}><Stethoscope size={14} color="#fff" /></div>
+          <p style={{ fontFamily: "Fraunces, serif", color: "#fff" }} className="text-sm font-semibold">VCRS Suite</p>
+        </div>
+        <button onClick={() => setMobileMenuOpen((v) => !v)} style={{ color: "#fff" }}><Menu size={22} /></button>
+      </div>
+      <aside style={{ background: COLORS.tealDeep, width: "236px", flexShrink: 0 }} className={`${mobileMenuOpen ? "flex" : "hidden"} md:flex flex-col py-5 overflow-y-auto fixed md:relative inset-0 z-40 md:z-auto`}>
+    <div className="px-5 mb-5 flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: COLORS.teal }}><Stethoscope size={16} color="#fff" /></div>
           <div><p style={{ fontFamily: "Fraunces, serif", color: "#fff" }} className="text-sm font-semibold leading-tight">VCRS Suite</p><p style={{ color: "#9DBDB4" }} className="text-[11px]">Clinic &amp; research desk</p></div>
         </div>
         <nav className="flex-1 px-2 space-y-4">
-          <button onClick={() => { setView("dashboard"); setActivePatient(null); }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-            style={{ background: view === "dashboard" ? COLORS.teal : "transparent", color: view === "dashboard" ? "#fff" : "#B7D1C9" }}>
+          <button onClick={() => { setView("dashboard"); setActivePatient(null); setMobileMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: view === "dashboard" ? COLORS.teal : "transparent", color: view === "dashboard" ? "#fff" : "#B7D1C9" }}>
             <LayoutDashboard size={16} /> Dashboard
           </button>
           <button onClick={() => { setView("reports"); setActivePatient(null); }}
@@ -1480,8 +1486,8 @@ const [loadError, setLoadError] = useState("");
                 {g.items.map((m) => {
                   const Icon = m.icon; const active = view === m.key;
                   return (
-                    <button key={m.key} onClick={() => { setView(m.key); if (m.key !== "patients") setActivePatient(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: active ? COLORS.teal : "transparent", color: active ? "#fff" : "#B7D1C9" }}>
-                      <Icon size={16} /> {m.label}
+                    <button key={m.key} onClick={() => { setView(m.key); if (m.key !== "patients") setActivePatient(null); setMobileMenuOpen(false); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: active ? COLORS.teal : "transparent", color: active ? "#fff" : "#B7D1C9" }}>
+                    <Icon size={16} /> {m.label}
                     </button>
                   );
                 })}
@@ -1498,8 +1504,8 @@ const [loadError, setLoadError] = useState("");
         </div> 
       </aside>
 
-      <main className="flex-1 min-w-0 p-6 overflow-y-auto">
-        <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
+      <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto w-full">
+      <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
 
        {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
         {view === "reports" && <ReportsView data={data} />}
