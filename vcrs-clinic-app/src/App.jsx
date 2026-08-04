@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Printer,
+ TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -788,9 +788,9 @@ function PatientsList({ patients, search, setSearch, onAdd, onOpen, onEdit, onDe
       {patients.length === 0 ? (
         <EmptyState icon={Users} title="No patients yet" subtitle="Add your first patient to start building their chart." action={<PrimaryButton onClick={onAdd}><Plus size={16} /> New patient</PrimaryButton>} />
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {patients.map((p) => (
-            <div key={p.id} className="rounded-xl p-4 flex items-center gap-3 cursor-pointer transition-shadow" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {patients.map((p) => (  
+      <div key={p.id} className="rounded-xl p-4 flex items-center gap-3 cursor-pointer transition-shadow" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}
               onClick={() => onOpen(p)} onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 2px 10px rgba(22,48,43,0.07)")} onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}>
               <div className="w-11 h-11 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0" style={{ background: hueFor(p.id), fontFamily: "Fraunces, serif" }}>{initials(recordLabel(MODULES_BY_KEY.patients, p))}</div>
               <div className="min-w-0 flex-1">
@@ -837,7 +837,7 @@ function Dashboard({ data, goToPatient, setView }) {
           <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
         </div>
       </header>
-      <div className="grid grid-cols-5 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -1313,6 +1313,7 @@ function LoginScreen() {
 ------------------------------------------------------------------ */
 export default function App() {
   const [printTarget, setPrintTarget] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState(undefined);
 const [loaded, setLoaded] = useState(false);
 const [loadError, setLoadError] = useState("");
@@ -1455,15 +1456,22 @@ const [loadError, setLoadError] = useState("");
     );
   }
   return (
-    <div style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif", minHeight: "100vh" }} className="w-full flex">
+   <div style={{ background: COLORS.surface, fontFamily: "Inter, sans-serif", minHeight: "100vh" }} className="w-full flex flex-col md:flex-row">
       <style>{FONT_IMPORT}</style>
-      <aside style={{ background: COLORS.tealDeep, width: "236px", flexShrink: 0 }} className="flex flex-col py-5 overflow-y-auto">
-        <div className="px-5 mb-5 flex items-center gap-2">
+      <div className="md:hidden flex items-center justify-between px-4 py-3" style={{ background: COLORS.tealDeep }}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: COLORS.teal }}><Stethoscope size={14} color="#fff" /></div>
+          <p style={{ fontFamily: "Fraunces, serif", color: "#fff" }} className="text-sm font-semibold">VCRS Suite</p>
+        </div>
+        <button onClick={() => setMobileMenuOpen((v) => !v)} style={{ color: "#fff" }}><Menu size={22} /></button>
+      </div>
+      <aside style={{ background: COLORS.tealDeep, width: "236px", flexShrink: 0 }} className={`${mobileMenuOpen ? "flex" : "hidden"} md:flex flex-col py-5 overflow-y-auto fixed md:relative inset-0 z-40 md:z-auto`}>
+    <div className="px-5 mb-5 flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: COLORS.teal }}><Stethoscope size={16} color="#fff" /></div>
           <div><p style={{ fontFamily: "Fraunces, serif", color: "#fff" }} className="text-sm font-semibold leading-tight">VCRS Suite</p><p style={{ color: "#9DBDB4" }} className="text-[11px]">Clinic &amp; research desk</p></div>
         </div>
         <nav className="flex-1 px-2 space-y-4">
-          <button onClick={() => { setView("dashboard"); setActivePatient(null); }}
+         <button onClick={() => { setView("dashboard"); setActivePatient(null); setMobileMenuOpen(false); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
             style={{ background: view === "dashboard" ? COLORS.teal : "transparent", color: view === "dashboard" ? "#fff" : "#B7D1C9" }}>
             <LayoutDashboard size={16} /> Dashboard
@@ -1480,7 +1488,8 @@ const [loadError, setLoadError] = useState("");
                 {g.items.map((m) => {
                   const Icon = m.icon; const active = view === m.key;
                   return (
-                    <button key={m.key} onClick={() => { setView(m.key); if (m.key !== "patients") setActivePatient(null); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: active ? COLORS.teal : "transparent", color: active ? "#fff" : "#B7D1C9" }}>
+                   <button key={m.key} onClick={() => { setView(m.key); if (m.key !== "patients") setActivePatient(null); setMobileMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors" style={{ background: active ? COLORS.teal : "transparent", color: active ? "#fff" : "#B7D1C9" }}>
                       <Icon size={16} /> {m.label}
                     </button>
                   );
@@ -1498,8 +1507,8 @@ const [loadError, setLoadError] = useState("");
         </div> 
       </aside>
 
-      <main className="flex-1 min-w-0 p-6 overflow-y-auto">
-        <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
+     <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto w-full">
+     <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
 
        {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
         {view === "reports" && <ReportsView data={data} />}
