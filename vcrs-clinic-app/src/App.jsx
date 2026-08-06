@@ -99,13 +99,27 @@ const MODULES = [
       { name: "Frequency", db: "frequency", type: "text" },
       { name: "Duration", db: "duration", type: "text" },
       { name: "Instructions", db: "instructions", type: "textarea" },
+{ name: "General Instructions", db: "general_instructions", type: "textarea", rows: 4 },
       { name: "Attachment", db: "attachment_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx,image/*" },
       { name: "Status", db: "status", type: "select", options: ["Active", "Completed", "Cancelled"] },
     ],
     listColumns: ["Patient ID", "Medicine", "Dosage", "Frequency", "Status"],
-  },
-  {
-    key: "laboratory", label: "Laboratory", table: "laboratory", icon: FlaskConical, category: "Clinical",
+      },
+      {
+        key: "prescription_items", label: "Medicines", table: "prescription_items", icon: Pill, category: "Clinical",
+        displayIdField: null, audit: false,
+        fields: [
+          { name: "Prescription", db: "prescription_id", type: "fk", module: "prescriptions", required: true },
+          { name: "Medicine", db: "medicine", type: "text", required: true },
+          { name: "Dosage", db: "dosage", type: "text" },
+          { name: "Frequency", db: "frequency", type: "text" },
+          { name: "Duration", db: "duration", type: "text" },
+          { name: "Instructions", db: "instructions", type: "textarea" },
+        ],
+        listColumns: ["Medicine", "Dosage", "Duration"],
+      },
+      {
+        key: "laboratory", label: "Laboratory", table: "laboratory", icon: FlaskConical, category: "Clinical",
     displayIdField: "lab_id", audit: true,
     fields: [
       { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
@@ -1099,16 +1113,38 @@ function PrintDocument({ type, record, patient, data }) {
             </tbody>
           </table>
         </>
-      ) : type === "prescription" ? (
+    ) : type === "prescription" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "20px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px" }}>℞ Prescription</h2>
           <div style={{ fontSize: "13px", marginTop: "12px", lineHeight: 1.8 }}>
-            <p><strong>Medicine:</strong> {record.medicine}</p>
-            <p><strong>Dosage:</strong> {record.dosage || "—"} &nbsp;&nbsp; <strong>Frequency:</strong> {record.frequency || "—"} &nbsp;&nbsp; <strong>Duration:</strong> {record.duration || "—"}</p>
-            {record.instructions && <p><strong>Instructions:</strong> {record.instructions}</p>}
+            {record.general_instructions && (
+              <div style={{ marginBottom: "12px", whiteSpace: "pre-line" }}>{record.general_instructions}</div>
+            )}
+            {(data.prescription_items || [])
+              .filter((item) => item.prescription_id === record.id)
+              .sort((a, b) => (a.sr_no || 0) - (b.sr_no || 0) || (a.created_on || "").localeCompare(b.created_on || ""))
+              .map((item, i) => (
+                <div key={item.id} style={{ marginBottom: "10px" }}>
+                  <p style={{ margin: 0 }}>
+                    <strong>{i + 1}. {item.medicine}</strong>
+                    {item.duration && <> — {item.duration}</>}
+                  </p>
+                  {(item.dosage || item.frequency) && (
+                    <p style={{ margin: "2px 0 0", paddingLeft: "16px" }}>
+                      {item.dosage || "—"} {item.frequency && `· ${item.frequency}`}
+                    </p>
+                  )}
+                  {item.instructions && (
+                    <p style={{ margin: "2px 0 0", paddingLeft: "16px", fontStyle: "italic" }}>{item.instructions}</p>
+                  )}
+                </div>
+              ))}
+            {(data.prescription_items || []).filter((item) => item.prescription_id === record.id).length === 0 && (
+              <p style={{ color: "#8A9990" }}>No medicines added yet.</p>
+            )}
           </div>
-        </>
-      ) : type === "histopathology" ? (
+        </> 
+    ) : type === "histopathology" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Histopathology Report</h2>
       <div style={{ fontSize: "13px", marginTop: "14px", lineHeight: 1.7 }}>
