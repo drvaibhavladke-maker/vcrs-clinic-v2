@@ -845,11 +845,11 @@ function Dashboard({ data, goToPatient, setView }) {
   const pendingLabs = (data.laboratory || []).filter((l) => l.status === "Pending").length;
   const patientById = (id) => patients.find((p) => p.id === id);
   const stats = [
-    { label: "Patients on file", value: patients.length, icon: Users },
-    { label: "Today's appointments", value: todaysAppts.length, icon: CalendarDays },
-    { label: "Outstanding balance", value: fmtMoney(unpaid), icon: Receipt, mono: true },
-    { label: "Pending lab results", value: pendingLabs, icon: FlaskConical },
-    { label: "Active research projects", value: activeProjects, icon: Microscope },
+    { label: "Patients on file", value: patients.length, icon: Users, view: "patients" },
+    { label: "Today's appointments", value: todaysAppts.length, icon: CalendarDays, view: "appointments" },
+    { label: "Outstanding balance", value: fmtMoney(unpaid), icon: Receipt, mono: true, view: "billing" },
+    { label: "Pending lab results", value: pendingLabs, icon: FlaskConical, view: "laboratory" },
+    { label: "Active research projects", value: activeProjects, icon: Microscope, view: "PLACEHOLDER" },
   ];
   return (
     <div>
@@ -863,15 +863,15 @@ function Dashboard({ data, goToPatient, setView }) {
         </div>
       </header>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-        {stats.map((s) => {
+      {stats.map((s) => {
           const Icon = s.icon;
           return (
-            <div key={s.label} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+            <div key={s.label} onClick={() => s.view && setView(s.view)} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, cursor: s.view ? "pointer" : "default" }}>
               <div className="flex items-center justify-between mb-3"><span className="text-xs font-medium" style={{ color: COLORS.inkSoft }}>{s.label}</span><Icon size={15} style={{ color: COLORS.teal }} /></div>
               <p style={{ fontFamily: s.mono ? "IBM Plex Mono, monospace" : "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold">{s.value}</p>
             </div>
           );
-        })}
+        })} 
       </div>
       <div className="rounded-xl overflow-hidden" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${COLORS.line}` }}>
