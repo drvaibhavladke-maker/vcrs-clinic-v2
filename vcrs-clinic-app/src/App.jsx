@@ -616,8 +616,19 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
       if (field.type === "password") {
           return <Field key={field.name} label={field.name}><TextInput type="password" value={form[field.name]} onChange={set(field.name)} autoComplete="new-password" /></Field>;
         }
-        return <Field key={field.name} label={field.name} required={field.required}><TextInput type={field.type} value={form[field.name]} onChange={set(field.name)} required={field.required} disabled={locked} /></Field>;
-      })}
+    if (module.key === "prescription_items" && field.name === "Medicine") {
+  const usedNames = [...new Set((data.prescription_items || []).map((r) => r.medicine).filter(Boolean))];
+  return (
+    <Field key={field.name} label={field.name} required={field.required}>
+      <TextInput type={field.type} value={form[field.name]} onChange={set(field.name)} required={field.required} disabled={locked} list="medicine-suggestions" />
+      <datalist id="medicine-suggestions">
+        {usedNames.map((name) => <option key={name} value={name} />)}
+      </datalist>
+    </Field>
+  );
+}
+return <Field key={field.name} label={field.name} required={field.required}><TextInput type={field.type} value={form[field.name]} onChange={set(field.name)} required={field.required} disabled={locked} /></Field>;    
+    })}
       <PrimaryButton type="submit" full disabled={saving}>
         {saving ? <Loader2 size={16} className="animate-spin" /> : null}
         {saving ? "Saving…" : initial ? "Save changes" : `Add ${module.label.replace(/s$/, "")}`}
