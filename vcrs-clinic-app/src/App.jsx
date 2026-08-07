@@ -845,11 +845,11 @@ function Dashboard({ data, goToPatient, setView }) {
   const pendingLabs = (data.laboratory || []).filter((l) => l.status === "Pending").length;
   const patientById = (id) => patients.find((p) => p.id === id);
   const stats = [
-    { label: "Patients on file", value: patients.length, icon: Users, view: "patients" },
-    { label: "Today's appointments", value: todaysAppts.length, icon: CalendarDays, view: "appointments" },
-    { label: "Outstanding balance", value: fmtMoney(unpaid), icon: Receipt, mono: true, view: "billing" },
-    { label: "Pending lab results", value: pendingLabs, icon: FlaskConical, view: "laboratory" },
-    { label: "Active research projects", value: activeProjects, icon: Microscope, view: "PLACEHOLDER" },
+    { label: "New patients", value: newPatients.length, view: "patients" },
+    { label: "Appointments", value: appointments.length, view: "appointments" },
+    { label: "Consultations", value: consultations.length, view: "consultations" },
+    { label: "Revenue collected", value: fmtMoney(revenuePaid), mono: true, view: "billing" },
+    { label: "Outstanding", value: fmtMoney(revenueUnpaid), mono: true, view: "billing" },
   ];
   return (
     <div>
@@ -992,13 +992,12 @@ function ReportsView({ data }) {
 
       <div className="grid grid-cols-5 gap-3 mb-8">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+          <div key={s.label} onClick={() => s.view && setView(s.view)} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, cursor: s.view ? "pointer" : "default" }}>
             <span className="text-xs font-medium block mb-2" style={{ color: COLORS.inkSoft }}>{s.label}</span>
             <p style={{ fontFamily: s.mono ? "IBM Plex Mono, monospace" : "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold">{s.value}</p>
           </div>
         ))}
       </div>
-
       <div className="grid grid-cols-2 gap-6 mb-6">
         <div className="rounded-xl p-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
           <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-sm font-semibold mb-4">Patients by gender</h2>
