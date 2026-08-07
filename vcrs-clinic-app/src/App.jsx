@@ -845,11 +845,11 @@ function Dashboard({ data, goToPatient, setView }) {
   const pendingLabs = (data.laboratory || []).filter((l) => l.status === "Pending").length;
   const patientById = (id) => patients.find((p) => p.id === id);
   const stats = [
-    { label: "New patients", value: newPatients.length, view: "patients" },
-    { label: "Appointments", value: appointments.length, view: "appointments" },
-    { label: "Consultations", value: consultations.length, view: "consultations" },
-    { label: "Revenue collected", value: fmtMoney(revenuePaid), mono: true, view: "billing" },
-    { label: "Outstanding", value: fmtMoney(revenueUnpaid), mono: true, view: "billing" },
+    { label: "Patients on file", value: patients.length, icon: Users, view: "patients" },
+    { label: "Today's appointments", value: todaysAppts.length, icon: CalendarDays, view: "appointments" },
+    { label: "Outstanding balance", value: fmtMoney(unpaid), icon: Receipt, mono: true, view: "billing" },
+    { label: "Pending lab results", value: pendingLabs, icon: FlaskConical, view: "laboratory" },
+    { label: "Active research projects", value: activeProjects, icon: Microscope },
   ];
   return (
     <div>
