@@ -913,7 +913,7 @@ function ageGroup(age) {
   return "60+";
 }
 
-function ReportsView({ data }) {
+function ReportsView({ data, setView }) {
   const today = todayISO();
   const firstOfMonth = today.slice(0, 8) + "01";
   const [from, setFrom] = useState(firstOfMonth);
@@ -969,13 +969,12 @@ function ReportsView({ data }) {
   }, [appointments]);
 
   const stats = [
-    { label: "New patients", value: newPatients.length },
-    { label: "Appointments", value: appointments.length },
-    { label: "Consultations", value: consultations.length },
-    { label: "Revenue collected", value: fmtMoney(revenuePaid), mono: true },
-    { label: "Outstanding", value: fmtMoney(revenueUnpaid), mono: true },
+    { label: "New patients", value: newPatients.length, view: "patients" },
+    { label: "Appointments", value: appointments.length, view: "appointments" },
+    { label: "Consultations", value: consultations.length, view: "consultations" },
+    { label: "Revenue collected", value: fmtMoney(revenuePaid), mono: true, view: "billing" },
+    { label: "Outstanding", value: fmtMoney(revenueUnpaid), mono: true, view: "billing" },
   ];
-
   return (
     <div>
       <header className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -991,12 +990,12 @@ function ReportsView({ data }) {
       </header>
 
       <div className="grid grid-cols-5 gap-3 mb-8">
-        {stats.map((s) => (
+      {stats.map((s) => (
           <div key={s.label} onClick={() => s.view && setView(s.view)} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, cursor: s.view ? "pointer" : "default" }}>
             <span className="text-xs font-medium block mb-2" style={{ color: COLORS.inkSoft }}>{s.label}</span>
             <p style={{ fontFamily: s.mono ? "IBM Plex Mono, monospace" : "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold">{s.value}</p>
           </div>
-        ))}
+        ))} 
       </div>
       <div className="grid grid-cols-2 gap-6 mb-6">
         <div className="rounded-xl p-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
@@ -1557,8 +1556,8 @@ const [loadError, setLoadError] = useState("");
      <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
 
        {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
-        {view === "reports" && <ReportsView data={data} />}
-        {view === "patients" && !activePatient && (
+       {view === "reports" && <ReportsView data={data} setView={setView} />} 
+       {view === "patients" && !activePatient && (
           <PatientsList patients={filteredPatients} search={search} setSearch={setSearch} onAdd={() => setModal({ moduleKey: "patients" })} onOpen={goToPatient} onEdit={(p) => setModal({ moduleKey: "patients", initial: p })} onDelete={(p) => openDelete("patients", p)} />
         )}
         {view === "patients" && activePatient && (
