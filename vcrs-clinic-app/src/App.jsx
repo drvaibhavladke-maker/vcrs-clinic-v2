@@ -184,7 +184,7 @@ const MODULES = [
     fields: [
       { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
       { name: "Title", db: "title", type: "text" },
-     { name: "Image URL", db: "image_url", type: "file", bucket: "clinical-photos", accept: "image/*" },
+     { name: "Image URL", db: "image_url", type: "multifile", bucket: "clinical-photos", accept: "image/*" },
       { name: "Description", db: "description", type: "textarea" },
       { name: "Status", db: "status", type: "select", options: ["Active", "Archived"] },
     ],
