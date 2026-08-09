@@ -671,7 +671,36 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
           <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-2xl font-semibold">{module.label}</h1>
           <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">{records.length} record{records.length === 1 ? "" : "s"} on file</p>
         </div>
-        {!module.readOnly && <PrimaryButton onClick={onAdd}><Plus size={16} /> Add {module.label.replace(/s$/, "")}</PrimaryButton>}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+              const exportCols = module.fields.filter((f) => f.type !== "file" && f.type !== "multifile");
+              const header = exportCols.map((f) => f.name);
+              const rows = records.map((r) => exportCols.map((f) => {
+                if (f.type === "fk") {
+                  const targetModule = MODULES_BY_KEY[f.module];
+                  const linked = (data[f.module] || []).find((x) => x.id === r[f.db]);
+                  return linked ? recordLabel(targetModule, linked) : "";
+                }
+                return r[f.db];
+              }));
+              const csv = [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
+              const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${module.key}-export-${todayISO()}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium"
+            style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, color: COLORS.ink }}
+          >
+            <Download size={15} /> Export
+          </button>
+          {!module.readOnly && <PrimaryButton onClick={onAdd}><Plus size={16} /> Add {module.label.replace(/s$/, "")}</PrimaryButton>}
+        </div>
       </header>
       {!module.readOnly && (
         <div className="relative mb-5 max-w-sm">
