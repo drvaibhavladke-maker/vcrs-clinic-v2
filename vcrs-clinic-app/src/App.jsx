@@ -92,18 +92,13 @@ const MODULES = [
     key: "prescriptions", label: "Prescriptions", table: "prescriptions", icon: Pill, category: "Clinical",
     displayIdField: "prescription_id", audit: true,
     fields: [
-      { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
-      { name: "Doctor", db: "doctor", type: "text" },
-      { name: "Medicine", db: "medicine", type: "text", required: true },
-      { name: "Dosage", db: "dosage", type: "text" },
-      { name: "Frequency", db: "frequency", type: "text" },
-      { name: "Duration", db: "duration", type: "text" },
-      { name: "Instructions", db: "instructions", type: "textarea" },
-{ name: "General Instructions", db: "general_instructions", type: "textarea", rows: 4 },
-      { name: "Attachment", db: "attachment_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx,image/*" },
-      { name: "Status", db: "status", type: "select", options: ["Active", "Completed", "Cancelled"] },
-    ],
-    listColumns: ["Patient ID", "Medicine", "Dosage", "Frequency", "Status"],
+    { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
+    { name: "Doctor", db: "doctor", type: "text" },
+    { name: "General Instructions", db: "general_instructions", type: "textarea", rows: 10, required: true },
+    { name: "Attachment", db: "attachment_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx,image/*" },
+    { name: "Status", db: "status", type: "select", options: ["Active", "Completed", "Cancelled"] },
+  ],
+  listColumns: ["Patient ID", "Doctor", "Status"],
       },
       {
         key: "prescription_items", label: "Medicines", table: "prescription_items", icon: Pill, category: "Clinical",
@@ -1128,34 +1123,10 @@ function PrintDocument({ type, record, patient, data }) {
     ) : type === "prescription" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "20px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px" }}>℞ Prescription</h2>
-          <div style={{ fontSize: "13px", marginTop: "12px", lineHeight: 1.8 }}>
-            {record.general_instructions && (
-              <div style={{ marginBottom: "12px", whiteSpace: "pre-line" }}>{record.general_instructions}</div>
-            )}
-            {(data.prescription_items || [])
-              .filter((item) => item.prescription_id === record.id)
-              .sort((a, b) => (a.sr_no || 0) - (b.sr_no || 0) || (a.created_on || "").localeCompare(b.created_on || ""))
-              .map((item, i) => (
-                <div key={item.id} style={{ marginBottom: "10px" }}>
-                  <p style={{ margin: 0 }}>
-                    <strong>{i + 1}. {item.medicine}</strong>
-                    {item.duration && <> — {item.duration}</>}
-                  </p>
-                  {(item.dosage || item.frequency) && (
-                    <p style={{ margin: "2px 0 0", paddingLeft: "16px" }}>
-                      {item.dosage || "—"} {item.frequency && `· ${item.frequency}`}
-                    </p>
-                  )}
-                  {item.instructions && (
-                    <p style={{ margin: "2px 0 0", paddingLeft: "16px", fontStyle: "italic" }}>{item.instructions}</p>
-                  )}
-                </div>
-              ))}
-            {(data.prescription_items || []).filter((item) => item.prescription_id === record.id).length === 0 && (
-              <p style={{ color: "#8A9990" }}>No medicines added yet.</p>
-            )}
+          <div style={{ fontSize: "13px", marginTop: "12px", lineHeight: 1.9, whiteSpace: "pre-line" }}>
+            {record.general_instructions}
           </div>
-        </> 
+        </>
     ) : type === "histopathology" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Histopathology Report</h2>
@@ -1484,7 +1455,7 @@ const [loadError, setLoadError] = useState("");
     else setView(fieldDef.module);
   };
 
-  const NAV_GROUPS = CATEGORY_ORDER.map((cat) => ({ category: cat, items: MODULES.filter((m) => m.category === cat && m.key !== "consultations") }));
+  const NAV_GROUPS = CATEGORY_ORDER.map((cat) => ({ category: cat, items: MODULES.filter((m) => m.category === cat && m.key !== "consultations" && m.key !== "prescription_items") }));
   if (!supabaseConfigured) return <SetupNeeded />;
   if (session === undefined) {
     return (
