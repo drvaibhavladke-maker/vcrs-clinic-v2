@@ -155,6 +155,7 @@ const MODULES = [
     displayIdField: "case_id", audit: true,
     fields: [
       { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
+      { name: "Doctor", db: "doctor", type: "text" },
       { name: "OPD No.", db: "opd_no", type: "text" },
       { name: "Visit Date", db: "visit_date", type: "date" },
       { name: "Referred By", db: "referred_by", type: "text" },
@@ -173,6 +174,8 @@ const MODULES = [
       { name: "Provisional / Differential Diagnosis", db: "provisional_diagnosis", type: "textarea", rows: 2 },
       { name: "Histological Examination", db: "histological_exam", type: "textarea", rows: 2 },
       { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
+      { name: "Treatment Plan", db: "treatment_plan", type: "textarea", rows: 2 },
+      { name: "Notes", db: "notes", type: "textarea", rows: 2 },
       { name: "Attachments (Photos / X-Rays / Reports)", db: "attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
       { name: "Status", db: "status", type: "select", options: ["Open", "Finalized"] },
     ],
@@ -1481,8 +1484,7 @@ const [loadError, setLoadError] = useState("");
     else setView(fieldDef.module);
   };
 
-  const NAV_GROUPS = CATEGORY_ORDER.map((cat) => ({ category: cat, items: MODULES.filter((m) => m.category === cat) }));
-
+  const NAV_GROUPS = CATEGORY_ORDER.map((cat) => ({ category: cat, items: MODULES.filter((m) => m.category === cat && m.key !== "consultations") }));
   if (!supabaseConfigured) return <SetupNeeded />;
   if (session === undefined) {
     return (
