@@ -4,9 +4,9 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
   ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer,
+ TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download,
 } from "lucide-react";
-import { supabase, supabaseConfigured } from "./supabaseClient";
+  import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
 /* ---------------------------------------------------------------
    Design tokens — same clinic-ledger look as the prototype.
@@ -794,7 +794,29 @@ return (
   );
 }
 
-function PatientsList({ patients, search, setSearch, onAdd, onOpen, onEdit, onDelete }) {
+function PatientsList({ patients, billing, search, setSearch, onAdd, onOpen, onEdit, onDelete }) {
+  const exportCSV = () => {
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Patient ID", "Name", "Age", "Gender", "Mobile", "Email", "Address", "City", "State", "Status", "Total Billed", "Total Paid", "Outstanding"];
+    const rows = patients.map((p) => {
+      const bills = billing.filter((b) => b.patient_id === p.id);
+      const totalBilled = bills.reduce((sum, b) => sum + (Number(b.net_amount) || 0), 0);
+      const totalPaid = bills.filter((b) => b.status === "Paid").reduce((sum, b) => sum + (Number(b.net_amount) || 0), 0);
+      const outstanding = totalBilled - totalPaid;
+      return [
+        p.patient_id, recordLabel(MODULES_BY_KEY.patients, p), p.age, p.gender, p.mobile, p.email,
+        p.address, p.city, p.state, p.status, totalBilled.toFixed(2), totalPaid.toFixed(2), outstanding.toFixed(2)
+      ];
+    });
+    const csv = [header, ...rows].map((r) => r.map(esc).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `patients-export-${todayISO()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <div>
       <header className="flex items-center justify-between mb-6">
@@ -802,9 +824,14 @@ function PatientsList({ patients, search, setSearch, onAdd, onOpen, onEdit, onDe
           <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-2xl font-semibold">Patients</h1>
           <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">Every chart on file — search by name, ID, UHID, or phone.</p>
         </div>
-        <PrimaryButton onClick={onAdd}><Plus size={16} /> New patient</PrimaryButton>
+        <div className="flex items-center gap-2">
+          <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, color: COLORS.ink }}>
+            <Download size={15} /> Export
+          </button>
+          <PrimaryButton onClick={onAdd}><Plus size={16} /> New patient</PrimaryButton>
+        </div>
       </header>
-      <div className="relative mb-5 max-w-sm">
+<div className="relative mb-5 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: COLORS.inkSoft }} />
         <TextInput placeholder="Search patients..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: "32px" }} />
       </div>
@@ -1531,8 +1558,8 @@ const [loadError, setLoadError] = useState("");
        {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
        {view === "reports" && <ReportsView data={data} setView={setView} />} 
        {view === "patients" && !activePatient && (
-          <PatientsList patients={filteredPatients} search={search} setSearch={setSearch} onAdd={() => setModal({ moduleKey: "patients" })} onOpen={goToPatient} onEdit={(p) => setModal({ moduleKey: "patients", initial: p })} onDelete={(p) => openDelete("patients", p)} />
-        )}
+   <PatientsList patients={filteredPatients} billing={data.billing || []} search={search} setSearch={setSearch} onAdd={() => setModal({ moduleKey: "patients" })} onOpen={goToPatient} onEdit={(p) => setModal({ moduleKey: "patients", initial: p })} onDelete={(p) => openDelete("patients", p)} />     
+   )}
         {view === "patients" && activePatient && (
     <PatientDetail patient={activePatient} data={data} onBack={() => setActivePatient(null)} onEditPatient={() => setModal({ moduleKey: "patients", initial: activePatient })} openAdd={openAdd} openEdit={openEdit} openDelete={openDelete} openPrint={setPrintTarget} />      
     )}
