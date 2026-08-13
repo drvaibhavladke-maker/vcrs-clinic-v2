@@ -1,0 +1,83 @@
+import { createClient } from "@supabase/supabase-js";
+import twilio from "twilio";
+
+export default async function handler(req, res) {
+  const auth = req.headers.authorization || "";
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowISO = tomorrow.toISOString().slice(0, 10);
+
+  const { data: appts, error } = await supabase
+    .from("appointments")
+    .select("*, patients(first_name, last_name, mobile)")
+    .eq("appointment_date", tomorrowISO)
+    .eq("status", "Scheduled")
+    .eq("reminder_sent", false);
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const { data: settingsRows } = await supabase.from("settings").select("*").eq("key", "doctor_phone");
+  const doctorPhone = settingsRows?.[0]?.value;
+
+  let sent = 0;
+  for (const appt of appts || []) {
+    const patientName = [appt.patients?.first_name, appt.patients?.last_name].filter(Boolean).join(" ");
+    const patientPhone = appt.patients?.mobile;
+    const doctorName = appt.doctor || "the doctor";
+    const smsBody = `Reminder: ${patientName} has an appointment tomorrow (${appt.appointment_date}) at ${appt.appointment_time} with ${doctorName}.`;
+
+    try {
+      if (patientPhone) {
+        await sendPatientReminder({
+          twilioClient,
+          to: formatPhone(patientPhone),
+          patientName,
+          doctorName,
+          date: appt.appointment_date,
+          time: appt.appointment_time,
+        });
+      }
+      if (doctorPhone) {
+        await twilioClient.messages.create({ body: smsBody, from: process.env.TWILIO_SMS_FROM, to: formatPhone(doctorPhone) });
+      }
+      await supabase.from("appointments").update({ reminder_sent: true }).eq("id", appt.id);
+      sent++;
+    } catch (e) {
+      console.error("Failed to send for appointment", appt.id, e.message);
+    }
+  }
+
+  return res.status(200).json({ checked: appts?.length || 0, sent });
+}
+
+async function sendPatientReminder({ twilioClient, to, patientName, doctorName, date, time }) {
+  try {
+    await twilioClient.messages.create({
+      contentSid: process.env.TWILIO_TEMPLATE_APPOINTMENT_REMINDER_SID,
+      contentVariables: JSON.stringify({ "1": patientName, "2": doctorName, "3": date, "4": time }),
+      from: `whatsapp:${process.env.TWILIO_WHATSAPP_FROM}`,
+      to: `whatsapp:${to}`,
+    });
+  } catch (whatsappError) {
+    console.error(`WhatsApp send failed for ${to}, falling back to SMS:`, whatsappError.message);
+    await twilioClient.messages.create({
+      body: `Hi ${patientName}, this is a reminder for your appointment with ${doctorName} on ${date} at ${time}. Please arrive 10 minutes early. - VSL Integrative Health: From Discovery to Complete Care`,
+      from: process.env.TWILIO_SMS_FROM,
+      to,
+    });
+  }
+}
+
+function formatPhone(raw) {
+  const digits = raw.replace(/[^\d+]/g, "");
+  if (digits.startsWith("+")) return digits;
+  if (digits.length === 10) return `+91${digits}`;
+  return `+${digits}`;
+}
