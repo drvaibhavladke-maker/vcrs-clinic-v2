@@ -1,6 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import twilio from "twilio";
 
+// Sends a review-request SMS to patients whose visit was marked "Completed" exactly
+// REVIEW_DELAY_DAYS ago, and who haven't had one sent yet (review_requested_at is null).
+
+const REVIEW_DELAY_DAYS = 3;
+
 export default async function handler(req, res) {
   const auth = req.headers.authorization || "";
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -14,15 +19,23 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
   const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-  const { data: candidates, error } = await supabase.rpc("get_review_candidates");
+  const targetDate = new Date();
+  targetDate.setDate(targetDate.getDate() - REVIEW_DELAY_DAYS);
+  const targetDateISO = targetDate.toISOString().slice(0, 10);
+
+  const { data: appts, error } = await supabase
+    .from("appointments")
+    .select("id, appointment_date, patients(first_name, last_name, mobile)")
+    .eq("appointment_date", targetDateISO)
+    .eq("status", "Completed")
+    .is("review_requested_at", null);
+
   if (error) return res.status(500).json({ error: error.message });
 
   let sent = 0;
-  for (const candidate of candidates || []) {
-    // ADJUST ME: rename these to match get_review_candidates()'s real column names.
-    const appointmentId = candidate.appointment_id;
-    const patientName = [candidate.first_name, candidate.last_name].filter(Boolean).join(" ");
-    const patientPhone = candidate.mobile;
+  for (const appt of appts || []) {
+    const patientName = [appt.patients?.first_name, appt.patients?.last_name].filter(Boolean).join(" ");
+    const patientPhone = appt.patients?.mobile;
 
     if (!patientPhone) continue;
 
@@ -34,14 +47,14 @@ export default async function handler(req, res) {
         from: process.env.TWILIO_SMS_FROM,
         to: formatPhone(patientPhone),
       });
-      await supabase.from("appointments").update({ review_requested_at: new Date().toISOString() }).eq("id", appointmentId);
+      await supabase.from("appointments").update({ review_requested_at: new Date().toISOString() }).eq("id", appt.id);
       sent++;
     } catch (e) {
-      console.error("Failed to send review request for", appointmentId, e.message);
+      console.error("Failed to send review request for", appt.id, e.message);
     }
   }
 
-  return res.status(200).json({ checked: candidates?.length || 0, sent });
+  return res.status(200).json({ checked: appts?.length || 0, sent });
 }
 
 function formatPhone(raw) {
