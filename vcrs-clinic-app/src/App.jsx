@@ -474,7 +474,37 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
     return f;
   };
   const [form, setForm] = useState(buildInitial);
-  const set = (name) => (e) => setForm((f) => ({ ...f, [name]: e.target.value }));
+  const set = (name) => (e) => setForm((f) => ({ ...f, [name]: e.target.value })); 
+  const [aiNotes, setAiNotes] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+
+  const generateWithAI = async () => {
+    if (!aiNotes.trim()) return;
+    setAiLoading(true);
+    setAiError("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const res = await fetch("/api/ai-clinical-summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ chiefComplaint: form["Chief Complaint"], rawNotes: aiNotes }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "AI request failed");
+      setForm((f) => ({
+        ...f,
+        Diagnosis: json.diagnosis || f.Diagnosis,
+        "Treatment Plan": json.treatmentPlan || f["Treatment Plan"],
+        Notes: json.notes || f.Notes,
+      }));
+    } catch (err) {
+      setAiError(err.message);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const submit = (e) => {
     e.preventDefault();
@@ -490,6 +520,28 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {module.key === "consultations" && (
+        <div className="rounded-lg p-3 space-y-2" style={{ background: COLORS.sage, border: `1px solid ${COLORS.line}` }}>
+          <p className="text-xs font-semibold" style={{ color: COLORS.ink }}>✨ AI Assist — draft from quick notes</p>
+          <TextArea
+            rows={3}
+            placeholder="Jot rough notes from the visit here, then click Draft. Review and edit everything before saving — this is a starting point, not a final record."
+            value={aiNotes}
+            onChange={(e) => setAiNotes(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={generateWithAI}
+            disabled={aiLoading || !aiNotes.trim()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"
+            style={{ background: COLORS.teal, color: "#fff" }}
+          >
+            {aiLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+            {aiLoading ? "Drafting…" : "Draft Diagnosis / Plan / Notes"}
+          </button>
+          {aiError && <p className="text-xs" style={{ color: COLORS.rose }}>{aiError}</p>}
+        </div>
+      )}
       {module.fields.map((field) => {
         const locked = lockedFields?.includes(field.name);
         if (field.type === "fk") {
