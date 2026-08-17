@@ -17,23 +17,25 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Invalid or expired session" });
   }
 
-  const { chiefComplaint, rawNotes } = req.body || {};
+  const { chiefComplaint, clinicalPresentation, rawNotes } = req.body || {};
   if (!rawNotes || !String(rawNotes).trim()) {
     return res.status(400).json({ error: "rawNotes is required" });
   }
 
-  const systemPrompt = `You are a clinical documentation assistant helping a physician turn their own brief visit notes into a structured consultation note.
+  const systemPrompt = `You are a clinical documentation assistant helping a physician turn their own brief visit notes into a structured case paper entry.
 
 Rules:
 - Only organize, expand, and clean up what the physician actually wrote. Do NOT invent findings, diagnoses, medications, or details that are not stated or clearly implied.
 - If the input doesn't give you enough to fill a section, write "See physician notes" for that section rather than fabricating content.
+- "diagnosis" should be the provisional / differential diagnosis (possibilities to consider). "finalDiagnosis" should only be filled in if the physician's notes clearly state a confirmed/final diagnosis — otherwise leave it as "Pending further evaluation".
 - Write in clear, professional clinical language.
 - This output is a DRAFT for the physician to review and edit before it becomes part of the medical record — never state it as final.
 
 Respond with ONLY a JSON object, no markdown fences, no extra text, in exactly this shape:
-{"diagnosis": "...", "treatmentPlan": "...", "notes": "..."}`;
+{"diagnosis": "...", "finalDiagnosis": "...", "treatmentPlan": "...", "notes": "..."}`;
 
   const userPrompt = `Chief complaint: ${chiefComplaint || "(not provided)"}
+Clinical / radiological presentation: ${clinicalPresentation || "(not provided)"}
 
 Physician's rough notes from the visit:
 ${rawNotes}`;
@@ -78,6 +80,7 @@ ${rawNotes}`;
 
     return res.status(200).json({
       diagnosis: parsed.diagnosis || "",
+      finalDiagnosis: parsed.finalDiagnosis || "",
       treatmentPlan: parsed.treatmentPlan || "",
       notes: parsed.notes || "",
     });
