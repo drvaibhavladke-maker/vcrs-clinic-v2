@@ -37,6 +37,30 @@ const hueFor = (id) => AVATAR_HUES[[...String(id)].reduce((a, c) => a + c.charCo
    FK fields store the target row's uuid `id` (real referential
    integrity, matching the Supabase schema).
 ------------------------------------------------------------------ */
+const PRESCRIPTION_PROTOCOL_DEFAULT = `Modify the Routine / Lifestyle Advice
+1) Morning exercise — 30 minutes
+2) Reduce stress / anxiety — meditation
+3) Drink lukewarm water on waking up — ½ to 1 glass every day
+4) Regular sleep pattern
+5) Regular food pattern
+6) Reduce screen time
+
+Medicines
+- Cap Antoxid HC (30): 0 – 0 – 1 × 30 days
+- Tab Viabact (15): 0 – 0 – 1 × 15 days
+- Tab Shelcal 500 mg (30): 0 – 0 – 1 × 15 days
+- Tab Neurobione Forte (30): 0 – 0 – 1 × 15 days
+- Tab Folic Acid (30): 0 – 0 – 1 × 15 days
+- Cholecalciferol sachet 10: one per day for 7 days
+- Tab Deworm: 1 tablet, every 6 months
+- Chewable Jeshtmadh Ghanvati — 15 days: chew 2–3 tablets per day
+- Jeshtmadhu Ghrut — 15 days: apply on the lesion 2–3 times a day; take ½ spoon at night
+- Jatayadi Oil — oil pulling, 15 days
+- Betadine Mouthwash — 15 days: 2 times a day, after food
+- Drink plenty of water — intermittent sips
+
+Do not substitute the prescribed medicines and do not repeat them without doctor's advice.
+Please bring this prescription during your next visit.`;
 const MODULES = [
   {
     key: "patients", label: "Patients", table: "patients", icon: Users, category: "Clinical",
@@ -94,7 +118,7 @@ const MODULES = [
     fields: [
     { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
     { name: "Doctor", db: "doctor", type: "text" },
-    { name: "General Instructions", db: "general_instructions", type: "textarea", rows: 10, required: true },
+    { name: "General Instructions", db: "general_instructions", type: "textarea", rows: 10, required: true, default: PRESCRIPTION_PROTOCOL_DEFAULT },
     { name: "Attachment", db: "attachment_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx,image/*" },
     { name: "Status", db: "status", type: "select", options: ["Active", "Completed", "Cancelled"] },
   ],
@@ -469,7 +493,7 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
     const f = {};
     module.fields.forEach((field) => {
       const empty = field.type === "multifile" ? [] : "";
-      f[field.name] = initial ? (initial[field.db] ?? empty) : (defaultValues?.[field.name] ?? empty);
+      f[field.name] = initial ? (initial[field.db] ?? empty) : (defaultValues?.[field.name] ?? field.default ?? empty);
     });
     return f;
   };
