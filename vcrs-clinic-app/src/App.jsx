@@ -489,13 +489,15 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
       const res = await fetch("/api/ai-clinical-summary", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ chiefComplaint: form["Chief Complaint"], rawNotes: aiNotes }),
+        body: JSON.stringify({ chiefComplaint: form["Chief Complaint"], clinicalPresentation: form["Clinical / Radiological Presentation"], rawNotes: aiNotes }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "AI request failed");
       setForm((f) => ({
         ...f,
-        Diagnosis: json.diagnosis || f.Diagnosis,
+        "Provisional / Differential Diagnosis": json.diagnosis || f["Provisional / Differential Diagnosis"],
+        "Final Diagnosis": json.finalDiagnosis || f["Final Diagnosis"],
+        
         "Treatment Plan": json.treatmentPlan || f["Treatment Plan"],
         Notes: json.notes || f.Notes,
       }));
@@ -520,7 +522,7 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {module.key === "consultations" && (
+      {module.key === "casepapers" && (
         <div className="rounded-lg p-3 space-y-2" style={{ background: COLORS.sage, border: `1px solid ${COLORS.line}` }}>
           <p className="text-xs font-semibold" style={{ color: COLORS.ink }}>✨ AI Assist — draft from quick notes</p>
           <TextArea
