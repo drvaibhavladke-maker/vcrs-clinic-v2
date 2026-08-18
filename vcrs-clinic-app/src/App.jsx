@@ -1052,7 +1052,23 @@ return (
             <div className="mt-2"><StatusBadge status={patient.status} /></div>
           </div>
         </div>
-        <IconBtn onClick={onEditPatient} title="Edit patient"><Edit2 size={16} /></IconBtn>
+                <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const casePapers = [...(data.casepapers || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
+              const prescriptions = [...(data.prescriptions || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
+              const bills = [...(data.billing || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
+              if (!casePapers[0] && !prescriptions[0] && !bills[0]) { alert("No Case Paper, Prescription, or Bill found for this patient yet."); return; }
+              openPrint({ type: "combined", casePaper: casePapers[0], prescription: prescriptions[0], bill: bills[0], patientId: patient.id });
+            }}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: COLORS.teal, color: "#fff" }}
+          >
+            Generate Combined PDF
+          </button>
+          <IconBtn onClick={onEditPatient} title="Edit patient"><Edit2 size={16} /></IconBtn>
+        </div>
       </div>
       {CHART_MODULES.map((key) => {
         const module = MODULES_BY_KEY[key];
@@ -1546,6 +1562,23 @@ function PrintDocument({ type, record, patient, data }) {
   );
 }
 
+function CombinedPrintDocument({ casePaper, prescription, bill, patient, data }) {
+  return (
+    <div>
+      {casePaper && (
+        <div style={{ pageBreakAfter: "always" }}>
+          <PrintDocument type="casepaper" record={casePaper} patient={patient} data={data} />
+        </div>
+      )}
+      {prescription && (
+        <div style={{ pageBreakAfter: "always" }}>
+          <PrintDocument type="prescription" record={prescription} patient={patient} data={data} />
+        </div>
+      )}
+      {bill && <PrintDocument type="bill" record={bill} patient={patient} data={data} />}
+    </div>
+  );
+}
 function PrintModal({ printTarget, patient, data, onClose }) {
   if (!printTarget) return null;
   return (
@@ -1558,9 +1591,13 @@ function PrintModal({ printTarget, patient, data, onClose }) {
             <IconBtn onClick={onClose} title="Close"><X size={18} /></IconBtn>
           </div>
         </div>
-        <div className="print-scroll overflow-y-auto">
-          <PrintDocument type={printTarget.type} record={printTarget.record} patient={patient} data={data} />
-        </div>
+                <div className="print-scroll overflow-y-auto">
+            {printTarget.type === "combined" ? (
+              <CombinedPrintDocument casePaper={printTarget.casePaper} prescription={printTarget.prescription} bill={printTarget.bill} patient={patient} data={data} />
+            ) : (
+              <PrintDocument type={printTarget.type} record={printTarget.record} patient={patient} data={data} />
+            )}
+          </div>  
       </div>
     </div>
   );
@@ -1873,7 +1910,7 @@ const [loadError, setLoadError] = useState("");
       {printTarget && (
         <PrintModal
           printTarget={printTarget}
-          patient={patients.find((p) => p.id === printTarget.record.patient_id)}
+                      patient={patients.find((p) => p.id === (printTarget.type === "combined" ? printTarget.patientId : printTarget.record.patient_id))}
           data={data}
           onClose={() => setPrintTarget(null)}
         />
