@@ -1479,7 +1479,7 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
           )}
         </div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "16px" }}>
+           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "16px", minHeight: "72px" }}>
         <div>
           <strong>Patient:</strong> {recordLabel(MODULES_BY_KEY.patients, patient)}<br />
           {patient?.age && <>Age/Gender: {patient.age} / {patient.gender}<br /></>}
