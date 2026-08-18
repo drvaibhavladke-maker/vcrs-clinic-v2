@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   LayoutDashboard, Users, CalendarDays, Receipt, Pill, Plus, X, Search,
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
@@ -488,6 +488,149 @@ function ErrorBanner({ message, onDismiss }) {
 /* ---------------------------------------------------------------
    Generic record form
 ------------------------------------------------------------------ */
+function ImageAnnotator({ src, bucket, onCancel, onSaved }) {
+  const canvasRef = useRef(null);
+  const [color, setColor] = useState("#e11d48");
+  const [drawing, setDrawing] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      const maxW = 700;
+      const scale = img.width > maxW ? maxW / img.width : 1;
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      setReady(true);
+      setHistory([canvas.toDataURL()]);
+    };
+    img.onerror = () => alert("Could not load image for annotation.");
+    img.src = src;
+  }, [src]);
+
+  const getPos = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height),
+    };
+  };
+
+  const start = (e) => {
+    e.preventDefault();
+    setDrawing(true);
+    const ctx = canvasRef.current.getContext("2d");
+    const { x, y } = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  };
+
+  const move = (e) => {
+    if (!drawing) return;
+    e.preventDefault();
+    const ctx = canvasRef.current.getContext("2d");
+    const { x, y } = getPos(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const end = () => {
+    if (!drawing) return;
+    setDrawing(false);
+    setHistory((h) => [...h, canvasRef.current.toDataURL()]);
+  };
+
+  const undo = () => {
+    if (history.length <= 1) return;
+    const next = history.slice(0, -1);
+    setHistory(next);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = next[next.length - 1];
+  };
+
+  const clearAll = () => {
+    if (history.length === 0) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      setHistory([history[0]]);
+    };
+    img.src = history[0];
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const canvas = canvasRef.current;
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+      const file = new File([blob], `annotated-${Date.now()}.png`, { type: "image/png" });
+      const url = await uploadFile(file, bucket || "documents");
+      onSaved(url);
+    } catch (err) {
+      alert("Save failed: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const colors = ["#e11d48", "#2563eb", "#16a34a", "#111827", "#f59e0b"];
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+      <div style={{ background: "#fff", borderRadius: "12px", padding: "16px", maxWidth: "760px", width: "100%", maxHeight: "92vh", overflow: "auto" }}>
+        <p style={{ fontWeight: 600, marginBottom: "8px" }}>Mark the image — draw with your mouse or finger</p>
+        <div style={{ display: "flex", gap: "8px", marginBottom: "8px", flexWrap: "wrap", alignItems: "center" }}>
+          {colors.map((c) => (
+            <button key={c} type="button" onClick={() => setColor(c)}
+              style={{ width: "24px", height: "24px", borderRadius: "50%", background: c, border: color === c ? "3px solid #111" : "1px solid #ccc", cursor: "pointer" }} />
+          ))}
+          <button type="button" onClick={undo} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "#e5e7eb" }}>Undo</button>
+          <button type="button" onClick={clearAll} className="px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ background: "#e5e7eb" }}>Clear</button>
+        </div>
+        {!ready && <p className="text-xs" style={{ color: "#6b7280" }}>Loading image…</p>}
+        <canvas
+          ref={canvasRef}
+          onMouseDown={start}
+          onMouseMove={move}
+          onMouseUp={end}
+          onMouseLeave={end}
+          onTouchStart={start}
+          onTouchMove={move}
+          onTouchEnd={end}
+          style={{ border: "1px solid #d1d5db", borderRadius: "8px", maxWidth: "100%", touchAction: "none", cursor: "crosshair" }}
+        />
+        <div style={{ display: "flex", gap: "8px", marginTop: "12px", justifyContent: "flex-end" }}>
+          <button type="button" onClick={onCancel} className="px-4 py-2 rounded-lg text-sm font-semibold" style={{ background: "#e5e7eb" }}>Cancel</button>
+          <button type="button" onClick={save} disabled={saving || !ready} className="px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60" style={{ background: COLORS.teal }}>
+            {saving ? "Saving…" : "Save Marked Copy"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFilter, onSave, saving }) {
   const buildInitial = () => {
     const f = {};
