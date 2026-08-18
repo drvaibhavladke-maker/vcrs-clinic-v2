@@ -1488,9 +1488,7 @@ function PrintDocument({ type, record, patient, data }) {
             </ul>
 
            <p style={{ marginBottom: "4px", fontWeight: 700 }}>On Examination:</p>
-            {getSetting(data, "oral_cavity_diagram_url") && (
-              <img src={getSetting(data, "oral_cavity_diagram_url")} alt="Oral cavity reference diagram" style={{ maxWidth: "320px", margin: "0 0 10px" }} />
-            )}
+            
             {record.hard_tissue_exam && <p style={{ marginBottom: "6px" }}><strong>Hard Tissue Examination:</strong> {record.hard_tissue_exam}{record.teeth_numbers && ` (Teeth: ${record.teeth_numbers})`}</p>}
             {record.soft_tissue_exam && <p style={{ marginBottom: "10px" }}><strong>Soft Tissue Examination:</strong> {record.soft_tissue_exam}</p>}
 
