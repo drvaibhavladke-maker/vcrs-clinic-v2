@@ -1518,7 +1518,7 @@ function PrintDocument({ type, record, patient, data }) {
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
                   {record.attachments.map((url, i) => (
                     /\.(png|jpe?g|gif|webp)$/i.test(url) ? (
-                      <img key={i} src={url} alt="Attachment" style={{ width: "90px", height: "90px", objectFit: "cover", borderRadius: "6px", border: "1px solid #DCE3DD" }} />
+                    <img key={i} src={url} alt="Attachment" style={{ width: "90px", height: "90px", objectFit: "contain", borderRadius: "6px", border: "1px solid #DCE3DD", background: "#f3f4f6" }} />  
                     ) : (
                       <a key={i} href={url} target="_blank" rel="noreferrer" style={{ fontSize: "11px", color: "#1F5F52", textDecoration: "underline" }}>{fileNameFromUrl(url)}</a>
                     )
