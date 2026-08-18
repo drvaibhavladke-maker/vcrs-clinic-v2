@@ -1565,8 +1565,6 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
 function CombinedPrintDocument({ casePaper, prescription, bill, patient, data }) {
   return (
     <div id="printable-area">
-  return (
-    <div>
       {casePaper && (
         <div style={{ pageBreakAfter: "always" }}>
           <PrintDocument type="casepaper" record={casePaper} patient={patient} data={data} hideWrapperId />
@@ -1574,10 +1572,10 @@ function CombinedPrintDocument({ casePaper, prescription, bill, patient, data })
       )}
       {prescription && (
         <div style={{ pageBreakAfter: "always" }}>
-                    <PrintDocument type="prescription" record={prescription} patient={patient} data={data} hideWrapperId />
+          <PrintDocument type="prescription" record={prescription} patient={patient} data={data} hideWrapperId />
         </div>
       )}
-            {bill && <PrintDocument type="bill" record={bill} patient={patient} data={data} hideWrapperId />}
+      {bill && <PrintDocument type="bill" record={bill} patient={patient} data={data} hideWrapperId />}
     </div>
   );
 }
