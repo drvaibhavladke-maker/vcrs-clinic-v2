@@ -808,8 +808,8 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
                     return (
                       <div key={i} className="relative">
                         {isImg ? (
-                          <img src={url} alt="Attachment" className="rounded-lg object-cover" style={{ width: "72px", height: "72px" }} />
-                        ) : (
+                      <img src={url} alt="Attachment" className="rounded-lg" style={{ width: "72px", height: "72px", objectFit: "contain", background: "#f3f4f6" }} />    
+                      ) : (
                           <a href={url} target="_blank" rel="noreferrer" className="flex items-center justify-center rounded-lg" style={{ width: "72px", height: "72px", background: COLORS.sage }}>
                             <FileText size={22} style={{ color: COLORS.teal }} />
                           </a>
