@@ -1389,7 +1389,7 @@ function ReportsView({ data, setView }) {
     </div>
   );
 }
-function PrintDocument({ type, record, patient, data }) {
+function PrintDocument({ type, record, patient, data, hideWrapperId }) {
   const clinicName = getSetting(data, "clinic_name") || "Your Clinic Name";
   const clinicAddress = getSetting(data, "clinic_address");
   const clinicPhone = getSetting(data, "clinic_phone");
@@ -1397,8 +1397,8 @@ function PrintDocument({ type, record, patient, data }) {
   const doctorQualification = getSetting(data, "doctor_qualification");
 
   return (
-    <div id="printable-area" style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
-   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
+    <div id={hideWrapperId ? undefined : "printable-area"} style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
         <div style={{ flex: 1, textAlign: "left" }}>
           {getSetting(data, "logo_left_url") && (
             <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "95px", display: "block" }} />
@@ -1564,18 +1564,20 @@ function PrintDocument({ type, record, patient, data }) {
 
 function CombinedPrintDocument({ casePaper, prescription, bill, patient, data }) {
   return (
+    <div id="printable-area">
+  return (
     <div>
       {casePaper && (
         <div style={{ pageBreakAfter: "always" }}>
-          <PrintDocument type="casepaper" record={casePaper} patient={patient} data={data} />
+          <PrintDocument type="casepaper" record={casePaper} patient={patient} data={data} hideWrapperId />
         </div>
       )}
       {prescription && (
         <div style={{ pageBreakAfter: "always" }}>
-          <PrintDocument type="prescription" record={prescription} patient={patient} data={data} />
+                    <PrintDocument type="prescription" record={prescription} patient={patient} data={data} hideWrapperId />
         </div>
       )}
-      {bill && <PrintDocument type="bill" record={bill} patient={patient} data={data} />}
+            {bill && <PrintDocument type="bill" record={bill} patient={patient} data={data} hideWrapperId />}
     </div>
   );
 }
