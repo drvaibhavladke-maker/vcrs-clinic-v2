@@ -195,7 +195,7 @@ const MODULES = [
       { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
       { name: "Treatment Plan", db: "treatment_plan", type: "textarea", rows: 2 },
       { name: "Notes", db: "notes", type: "textarea", rows: 2 },
-      { name: "Attachments (Photos / X-Rays / Reports)", db: "attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
+      { name: "Attachments (Photos / X-Rays / Reports)", db: "attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx", showOralCavityMap: true },
       { name: "Status", db: "status", type: "select", options: ["Open", "Finalized"] },
     ],
     listColumns: ["Patient ID", "OPD No.", "Visit Date", "Status"],
@@ -206,7 +206,7 @@ const MODULES = [
     fields: [
       { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
       { name: "Title", db: "title", type: "text" },
-     { name: "Image URL", db: "image_url", type: "multifile", bucket: "clinical-photos", accept: "image/*" },
+     { name: "Image URL", db: "image_url", type: "multifile", bucket: "clinical-photos", accept: "image/*", showOralCavityMap: true },
       { name: "Description", db: "description", type: "textarea" },
       { name: "Status", db: "status", type: "select", options: ["Active", "Archived"] },
     ],
@@ -645,6 +645,9 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
   const [aiNotes, setAiNotes] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
+    const [annotateSrc, setAnnotateSrc] = useState(null);
+  const [annotateField, setAnnotateField] = useState(null);
+  const [annotateBucket, setAnnotateBucket] = useState(null);
 
   const generateWithAI = async () => {
     if (!aiNotes.trim()) return;
@@ -689,6 +692,19 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
 
   return (
     <form onSubmit={submit} className="space-y-4">
+              {annotateSrc && (
+          <ImageAnnotator
+            src={annotateSrc}
+            bucket={annotateBucket}
+            onCancel={() => { setAnnotateSrc(null); setAnnotateField(null); setAnnotateBucket(null); }}
+            onSaved={(url) => {
+              setForm((f) => ({ ...f, [annotateField]: [...(f[annotateField] || []), url] }));
+              setAnnotateSrc(null);
+              setAnnotateField(null);
+              setAnnotateBucket(null);
+            }}
+          />
+        )}
       {module.key === "casepapers" && (
         <div className="rounded-lg p-3 space-y-2" style={{ background: COLORS.sage, border: `1px solid ${COLORS.line}` }}>
           <p className="text-xs font-semibold" style={{ color: COLORS.ink }}>✨ AI Assist — draft from quick notes</p>
@@ -773,8 +789,18 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
                     alert("Upload failed: " + err.message);
                   }
                 }}
-                className="w-full text-sm"
+                               className="w-full text-sm"
               />
+              {field.showOralCavityMap && (
+                <button
+                  type="button"
+                  onClick={() => { setAnnotateSrc("/oral-cavity-map.png"); setAnnotateField(field.name); setAnnotateBucket(field.bucket || "documents"); }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold mt-2"
+                  style={{ background: COLORS.sage, color: COLORS.ink, border: `1px solid ${COLORS.line}` }}
+                >
+                  🦷 Mark on Oral Cavity Diagram
+                </button>
+              )}
               {items.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {items.map((url, i) => {
@@ -788,14 +814,23 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
                             <FileText size={22} style={{ color: COLORS.teal }} />
                           </a>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => setForm((f) => ({ ...f, [field.name]: f[field.name].filter((_, idx) => idx !== i) }))}
-                          className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center text-white"
-                          style={{ width: "18px", height: "18px", background: COLORS.rose, fontSize: "11px", lineHeight: "18px" }}
-                        >×</button>
-                      </div>
-                    );
+                                            <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, [field.name]: f[field.name].filter((_, idx) => idx !== i) }))}
+                      className="absolute -top-1.5 -right-1.5 rounded-full flex items-center justify-center text-white"
+                      style={{ width: "18px", height: "18px", background: COLORS.rose, fontSize: "11px", lineHeight: "18px" }}
+                    >x</button>
+                    {isImg && (
+                      <button
+                        type="button"
+                        onClick={() => { setAnnotateSrc(url); setAnnotateField(field.name); setAnnotateBucket(field.bucket || "documents"); }}
+                        className="absolute -bottom-1.5 -right-1.5 rounded-full flex items-center justify-center text-white"
+                        style={{ width: "20px", height: "20px", background: COLORS.teal, fontSize: "11px", lineHeight: "20px" }}
+                        title="Mark up this image"
+                      >✎</button>
+                    )}
+                  </div>
+                        );
                   })}
                 </div>
               )}
