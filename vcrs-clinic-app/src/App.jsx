@@ -1115,12 +1115,12 @@ return (
           <button
             type="button"
             onClick={() => {
-              const casePapers = [...(data.casepapers || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
+                            const casePapers = [...(data.casepapers || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
+              const anxietyScreenings = [...(data.anxietyscreening || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
               const prescriptions = [...(data.prescriptions || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
               const bills = [...(data.billing || [])].filter((r) => r.patient_id === patient.id).sort((a, b) => (b.created_on || "").localeCompare(a.created_on || ""));
-              if (!casePapers[0] && !prescriptions[0] && !bills[0]) { alert("No Case Paper, Prescription, or Bill found for this patient yet."); return; }
-              openPrint({ type: "combined", casePaper: casePapers[0], prescription: prescriptions[0], bill: bills[0], patientId: patient.id });
-            }}
+              if (!casePapers[0] && !anxietyScreenings[0] && !prescriptions[0] && !bills[0]) { alert("No Case Paper, Anxiety Screening, Prescription, or Bill found for this patient yet."); return; }
+              openPrint({ type: "combined", casePaper: casePapers[0], anxietyScreening: anxietyScreenings[0], prescription: prescriptions[0], bill: bills[0], patientId: patient.id });            }}
             className="px-3 py-1.5 rounded-lg text-xs font-semibold"
             style={{ background: COLORS.teal, color: "#fff" }}
           >
@@ -1646,12 +1646,17 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
   );
 }
 
-function CombinedPrintDocument({ casePaper, prescription, bill, patient, data }) {
+function CombinedPrintDocument({ casePaper, anxietyScreening, prescription, bill, patient, data }) {
   return (
     <div id="printable-area">
       {casePaper && (
         <div style={{ pageBreakAfter: "always" }}>
           <PrintDocument type="casepaper" record={casePaper} patient={patient} data={data} hideWrapperId />
+        </div>
+      )}
+      {anxietyScreening && (
+        <div style={{ pageBreakAfter: "always" }}>
+          <PrintDocument type="anxietyscreening" record={anxietyScreening} patient={patient} data={data} hideWrapperId />
         </div>
       )}
       {prescription && (
@@ -1677,7 +1682,7 @@ function PrintModal({ printTarget, patient, data, onClose }) {
         </div>
                 <div className="print-scroll overflow-y-auto">
             {printTarget.type === "combined" ? (
-              <CombinedPrintDocument casePaper={printTarget.casePaper} prescription={printTarget.prescription} bill={printTarget.bill} patient={patient} data={data} />
+                           <CombinedPrintDocument casePaper={printTarget.casePaper} anxietyScreening={printTarget.anxietyScreening} prescription={printTarget.prescription} bill={printTarget.bill} patient={patient} data={data} />
             ) : (
               <PrintDocument type={printTarget.type} record={printTarget.record} patient={patient} data={data} />
             )}
