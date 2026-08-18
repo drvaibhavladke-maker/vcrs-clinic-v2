@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, CalendarDays, Receipt, Pill, Plus, X, Search,
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
-  ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope,
+    ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope, Brain,
  TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download,
 } from "lucide-react";
   import { supabase, supabaseConfigured } from "./supabaseClient";
@@ -31,6 +31,22 @@ const fmtMoney = (n) => `₹${Number(n || 0).toLocaleString("en-IN", { minimumFr
 const initials = (name = "") => name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") || "?";
 const AVATAR_HUES = ["#1F5F52", "#B8793A", "#6A5A9C", "#B14A3C", "#2E6E8C", "#7A8C2E"];
 const hueFor = (id) => AVATAR_HUES[[...String(id)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_HUES.length];
+const GAD7_ITEMS = [
+  "Q1. Feeling nervous, anxious, or on edge",
+  "Q2. Not being able to stop or control worrying",
+  "Q3. Worrying too much about different things",
+  "Q4. Trouble relaxing",
+  "Q5. Being so restless that it is hard to sit still",
+  "Q6. Becoming easily annoyed or irritable",
+  "Q7. Feeling afraid, as if something awful might happen",
+];
+const GAD7_OPTIONS = ["0 - Not at all", "1 - Several days", "2 - More than half the days", "3 - Nearly every day"];
+const gad7Severity = (total) => {
+  if (total >= 15) return { band: "Severe", guidance: "Active treatment indicated - combined psychotherapy (CBT) and pharmacotherapy per clinical judgement; consider psychiatry referral and screen for comorbid depression / suicidality." };
+  if (total >= 10) return { band: "Moderate", guidance: "Consider structured psychological intervention (CBT) and/or pharmacotherapy (e.g. SSRI/SNRI, per clinical judgement); closer follow-up recommended." };
+  if (total >= 5) return { band: "Mild", guidance: "Consider psychoeducation, guided self-help and lifestyle measures; reassess in 2-4 weeks; step up to a low-intensity CBT-based intervention if symptoms persist." };
+  return { band: "Minimal", guidance: "Watchful waiting with reassurance and psychoeducation; reassess if symptoms persist or worsen." };
+};
 
 /* ---------------------------------------------------------------
    Module schema — label/db pairs mirror VCRS_Database.xlsx headings.
@@ -222,7 +238,27 @@ const MODULES = [
       { name: "Storage Location", db: "storage_location", type: "text" },
       { name: "Status", db: "status", type: "select", options: ["Stored", "Used", "Discarded"] },
     ],
-    listColumns: ["Patient ID", "Sample Type", "Collection Date", "Status"],
+        listColumns: ["Patient ID", "Sample Type", "Collection Date", "Status"],
+  },
+  {
+    key: "anxietyscreening", label: "Anxiety Screening (GAD-7)", table: "anxiety_screenings", icon: Brain, category: "Clinical",
+    displayIdField: null, audit: true,
+    fields: [
+      { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
+      { name: "Screening Date", db: "screening_date", type: "date", required: true },
+      { name: GAD7_ITEMS[0], db: "q1_nervous_anxious", type: "select", options: GAD7_OPTIONS, required: true },
+      { name: GAD7_ITEMS[1], db: "q2_cant_stop_worry", type: "select", options: GAD7_OPTIONS, required: true },
+      { name: GAD7_ITEMS[2], db: "q3_worrying_too_much", type: "select", options: GAD7_OPTIONS, required: true },
+      { name: GAD7_ITEMS[3], db: "q4_trouble_relaxing", type: "select", options: GAD7_OPTIONS, required: true },
+      { name: GAD7_ITEMS[4], db: "q5_restless", type: "select", options: GAD7_OPTIONS, required: true },
+      { name: GAD7_ITEMS[5], db: "q6_irritable", type: "select", options: GAD7_OPTIONS, required: true },
+      { name: GAD7_ITEMS[6], db: "q7_afraid", type: "select", options: GAD7_OPTIONS, required: true },
+      { name: "Total Score", db: "total_score", type: "number", computed: true },
+      { name: "Severity Band", db: "severity_band", type: "text", computed: true },
+      { name: "Clinician Notes", db: "clinician_notes", type: "textarea", rows: 3 },
+      { name: "Status", db: "status", type: "select", options: ["Open", "Reviewed"] },
+    ],
+    listColumns: ["Patient ID", "Screening Date", "Total Score", "Severity Band", "Status"],
   },
   {
     key: "billing", label: "Billing", table: "billing", icon: Receipt, category: "Billing",
@@ -336,7 +372,8 @@ function recordLabel(module, rec) {
   if (module.key === "patients") return [rec.first_name, rec.middle_name, rec.last_name].filter(Boolean).join(" ") || rec.patient_id;
   if (module.key === "billing") return `${rec.description || "Bill"} · ${fmtMoney(rec.net_amount ?? rec.amount)}`;
   if (module.key === "researchprojects") return rec.title || rec.project_id;
-  if (module.key === "users") return rec.full_name || rec.username;
+    if (module.key === "users") return rec.full_name || rec.username;
+  if (module.key === "anxietyscreening") return `GAD-7 - ${rec.total_score ?? "—"}${rec.severity_band ? ` (${rec.severity_band})` : ""} - ${fmtDate(rec.screening_date)}`;
   const firstText = module.fields.find((f) => f.type === "text");
   return (firstText && rec[firstText.db]) || (module.displayIdField && rec[module.displayIdField]) || "Record";
 }
@@ -682,11 +719,16 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
     e.preventDefault();
     const required = module.fields.filter((f) => f.required);
     for (const f of required) if (!String(form[f.name] ?? "").trim()) return;
-    const payload = {};
+        const payload = {};
     module.fields.forEach((f) => {
       if (f.computed) return; // DB-generated column, never sent
       payload[f.db] = form[f.name] === "" ? null : form[f.name];
     });
+    if (module.key === "anxietyscreening") {
+      const total = GAD7_ITEMS.reduce((sum, name) => sum + (parseInt(form[name], 10) || 0), 0);
+      payload.total_score = total;
+      payload.severity_band = gad7Severity(total).band;
+    }
     onSave(payload);
   };
 
@@ -756,7 +798,24 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
       if (field.type === "textarea") {
           return <Field key={field.name} label={field.name} required={field.required}><TextArea rows={field.rows || 2} value={form[field.name]} onChange={set(field.name)} required={field.required} disabled={locked} /></Field>;
         } 
-      if (field.computed) {
+            if (field.computed) {
+          if (field.db === "total_score") {
+            const total = GAD7_ITEMS.reduce((sum, name) => sum + (parseInt(form[name], 10) || 0), 0);
+            const { band, guidance } = gad7Severity(total);
+            return (
+              <Field key={field.name} label="GAD-7 Score & Guidance">
+                <div className="rounded-lg px-3 py-3 space-y-1.5" style={{ background: COLORS.sage }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: COLORS.inkSoft }}>Total Score (0-21)</span>
+                    <span style={{ fontFamily: "IBM Plex Mono, monospace", color: COLORS.ink }} className="text-sm font-semibold">{total} - {band}</span>
+                  </div>
+                  <p className="text-xs" style={{ color: COLORS.inkSoft }}>{guidance}</p>
+                  <p className="text-[10px] italic" style={{ color: COLORS.inkSoft }}>General guidance for clinician review - not a diagnosis or treatment directive.</p>
+                </div>
+              </Field>
+            );
+          }
+          if (field.db === "severity_band") return null;
           const amt = parseFloat(form["Amount"]) || 0, disc = parseFloat(form["Discount"]) || 0, tax = parseFloat(form["Tax"]) || 0;
           return (
             <Field key={field.name} label={field.name}>
@@ -767,7 +826,7 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
             </Field>
           );
         }
-    if (field.type === "multifile") {
+      if (field.type === "multifile") {
           const items = form[field.name] || [];
           return (
             <Field key={field.name} label={field.name}>
@@ -1010,9 +1069,9 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
 /* ---------------------------------------------------------------
    Patient chart
 ------------------------------------------------------------------ */
-const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "casepapers", "billing", "payments", "clinicalphotos", "samples"];
-const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology", "casepapers"];
-const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology", casepapers: "casepaper" };
+const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "casepapers", "anxietyscreening", "billing", "payments", "clinicalphotos", "samples"];
+const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology", "casepapers", "anxietyscreening"];
+const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology", casepapers: "casepaper", anxietyscreening: "anxietyscreening" };
 function ChartSection({ title, icon: Icon, onAdd, empty, children, count }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : !!children;
   return (
@@ -1427,9 +1486,9 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
           {patient?.patient_id && <>Patient ID: {patient.patient_id}</>}
         </div>
       <div style={{ textAlign: "right" }}>
-          <strong>Date:</strong> {fmtDate(type === "histopathology" ? (record.report_date || record.created_on) : type === "casepaper" ? (record.visit_date || record.created_on) : record.created_on || todayISO())}<br />
-          <strong>{type === "bill" ? "Bill No" : type === "prescription" ? "Rx No" : type === "casepaper" ? "OPD No" : "Histopath No"}:</strong> {type === "bill" ? record.bill_id : type === "prescription" ? record.prescription_id : type === "casepaper" ? (record.opd_no || record.case_id) : (record.histopath_no || record.histo_id)}
-          {(type === "histopathology" || type === "casepaper") && record.received_date && <><br /><strong>Received:</strong> {fmtDate(record.received_date)}</>}
+                  <strong>Date:</strong> {fmtDate(type === "histopathology" ? (record.report_date || record.created_on) : type === "casepaper" ? (record.visit_date || record.created_on) : type === "anxietyscreening" ? (record.screening_date || record.created_on) : record.created_on || todayISO())}<br />
+          <strong>{type === "bill" ? "Bill No" : type === "prescription" ? "Rx No" : type === "casepaper" ? "OPD No" : type === "anxietyscreening" ? "Screening" : "Histopath No"}:</strong> {type === "bill" ? record.bill_id : type === "prescription" ? record.prescription_id : type === "casepaper" ? (record.opd_no || record.case_id) : type === "anxietyscreening" ? "GAD-7" : (record.histopath_no || record.histo_id)}  
+        {(type === "histopathology" || type === "casepaper") && record.received_date && <><br /><strong>Received:</strong> {fmtDate(record.received_date)}</>}
           {(type === "histopathology" || type === "casepaper") && record.referred_by && <><br /><strong>Referred by:</strong> {record.referred_by}</>}
         </div> 
       </div>
@@ -1486,6 +1545,31 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
               </div>
             )}
           </div>
+        </>
+           ) : type === "anxietyscreening" ? (
+        <>
+          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>GAD-7 Anxiety Screening</h2>
+          <table style={{ width: "100%", fontSize: "12px", marginTop: "12px", borderCollapse: "collapse" }}>
+            <tbody>
+              {GAD7_ITEMS.map((label, i) => (
+                <tr key={label}>
+                  <td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{label}</td>
+                  <td style={{ padding: "5px 6px", border: "1px solid #DCE3DD", textAlign: "right", whiteSpace: "nowrap" }}>{record[["q1_nervous_anxious","q2_cant_stop_worry","q3_worrying_too_much","q4_trouble_relaxing","q5_restless","q6_irritable","q7_afraid"][i]] || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: "14px", fontSize: "13px" }}>
+            <p style={{ margin: 0, fontWeight: 700 }}>Total Score: {record.total_score ?? "—"} / 21 - {record.severity_band || "—"}</p>
+            <p style={{ margin: "6px 0 0" }}>{gad7Severity(record.total_score || 0).guidance}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "10.5px", fontStyle: "italic" }}>General guidance for clinician review - not a diagnosis or treatment directive.</p>
+          </div>
+          {record.clinician_notes && (
+            <div style={{ marginTop: "14px", fontSize: "13px" }}>
+              <strong>Clinician Notes:</strong>
+              <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.clinician_notes}</p>
+            </div>
+          )}
         </>
       ) : (
         <>
@@ -1900,7 +1984,7 @@ const [loadError, setLoadError] = useState("");
       </main>
 
       {modal && (
-      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology", "casepapers"].includes(modal.moduleKey)}>  
+      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology", "casepapers", "anxietyscreening"].includes(modal.moduleKey)}>  
       <GenericForm module={MODULES_BY_KEY[modal.moduleKey]} initial={modal.initial} data={data} defaultValues={modal.defaultValues} lockedFields={modal.lockedFields}
             fkFilter={modal.moduleKey === "payments" && modal.defaultValues?.["Patient ID"] ? { "Bill ID": (opts) => opts.filter((b) => b.patient_id === modal.defaultValues["Patient ID"]) } : undefined}
             onSave={(payload) => saveRecord(modal.moduleKey, payload)} saving={saving} />
