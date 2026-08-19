@@ -18,7 +18,7 @@ const COLORS = {
   violet: "#6A5A9C", violetSoft: "#E9E5F3",
 };
 const FONT_IMPORT =
-  "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap'); @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { width: 100%; padding: 0; } .no-print { display: none !important; } html, body { height: auto !important; overflow: visible !important; } .print-overlay, .print-card, .print-scroll { position: static !important; display: block !important; overflow: visible !important; max-height: none !important; height: auto !important; background: none !important; box-shadow: none !important; } aside, main { display: none !important; } }";
+  "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap'); @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { width: 100%; padding: 0; } .no-print { display: none !important; } html, body { height: auto !important; overflow: visible !important; } .print-overlay, .print-card, .print-scroll { position: static !important; display: block !important; overflow: visible !important; max-height: none !important; height: auto !important; background: none !important; box-shadow: none !important; padding: 0 !important; } aside, main { display: none !important; } }";
 const CURRENT_USER = "Admin"; // replace with logged-in user once auth is added
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (iso) => {
