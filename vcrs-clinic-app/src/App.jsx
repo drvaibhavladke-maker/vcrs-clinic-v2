@@ -1676,7 +1676,7 @@ function PrintModal({ printTarget, patient, data, onClose }) {
         <div className="flex items-center justify-between px-5 py-3 no-print" style={{ borderBottom: "1px solid #DCE3DD" }}>
           <p className="text-sm font-semibold" style={{ color: COLORS.ink }}>Preview</p>
           <div className="flex items-center gap-2">
-            <PrimaryButton onClick={() => window.print()}>Print / Save as PDF</PrimaryButton>
+                        <PrimaryButton onClick={() => { const el = document.querySelector(".print-scroll"); if (el) el.scrollTop = 0; window.print(); }}>Print / Save as PDF</PrimaryButton>
             <IconBtn onClick={onClose} title="Close"><X size={18} /></IconBtn>
           </div>
         </div>
