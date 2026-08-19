@@ -1457,10 +1457,10 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
 
   return (
     <div id={hideWrapperId ? undefined : "printable-area"} style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "12px", marginBottom: "20px" }}>
-        <div style={{ flex: 1, textAlign: "left" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "8px", marginBottom: "12px" }}>
+      <div style={{ flex: 1, textAlign: "left" }}>
           {getSetting(data, "logo_left_url") && (
-            <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "95px", display: "block" }} />
+                        <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "65px", display: "block" }} />
           )}
         </div>
         <div style={{ flex: 2, textAlign: "center" }}>
@@ -1475,8 +1475,8 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
         </div>
         <div style={{ flex: 1, textAlign: "right" }}>
           {getSetting(data, "logo_right_url") && (
-            <img src={getSetting(data, "logo_right_url")} alt="Integrative Health Logo" style={{ height: "95px", marginLeft: "auto", display: "block" }} />
-          )}
+                <img src={getSetting(data, "logo_right_url")} alt="Integrative Health Logo" style={{ height: "65px", marginLeft: "auto", display: "block" }} />       
+    )}
         </div>
       </div>
            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginBottom: "16px", minHeight: "72px" }}>
