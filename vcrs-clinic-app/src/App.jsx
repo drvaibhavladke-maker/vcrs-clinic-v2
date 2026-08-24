@@ -1407,12 +1407,16 @@ function ReportsView({ data, setView }) {
   const patients = data.patients || [];
   const appointments = (data.appointments || []).filter((a) => inRange(a.appointment_date));
   const consultations = (data.consultations || []).filter((c) => inRange((c.created_on || "").slice(0, 10)));
+  const casePapers = (data.casepapers || []).filter((c) => inRange(c.visit_date || (c.created_on || "").slice(0, 10)));
+  const histopathology = (data.histopathology || []).filter((h) => inRange(h.report_date || (h.created_on || "").slice(0, 10)));
   const billing = (data.billing || []).filter((b) => inRange(b.created_on));
   const newPatients = patients.filter((p) => inRange(p.created_on));
 
-  const seenPatientIds = new Set([
+   const seenPatientIds = new Set([
     ...appointments.map((a) => a.patient_id),
     ...consultations.map((c) => c.patient_id),
+    ...casePapers.map((c) => c.patient_id),
+    ...histopathology.map((h) => h.patient_id),
   ]);
   const seenPatients = patients.filter((p) => seenPatientIds.has(p.id));
 
@@ -1432,18 +1436,21 @@ function ReportsView({ data, setView }) {
     return order.filter((k) => counts[k]).map((name) => ({ name, count: counts[name] }));
   }, [seenPatients]);
 
-  const diagnosisData = useMemo(() => {
+   const diagnosisData = useMemo(() => {
     const counts = {};
-    consultations.forEach((c) => {
-      const label = (c.diagnosis || "").trim();
-      if (!label) return;
-      counts[label] = (counts[label] || 0) + 1;
-    });
+    const addLabel = (label) => {
+      const l = (label || "").trim();
+      if (!l) return;
+      counts[l] = (counts[l] || 0) + 1;
+    };
+    consultations.forEach((c) => addLabel(c.diagnosis));
+    casePapers.forEach((c) => addLabel(c.final_diagnosis || c.provisional_diagnosis));
+    histopathology.forEach((h) => addLabel(h.final_diagnosis));
     return Object.entries(counts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
-  }, [consultations]);
+  }, [consultations, casePapers, histopathology]);
 
   const trendData = useMemo(() => {
     const counts = {};
@@ -1515,7 +1522,7 @@ function ReportsView({ data, setView }) {
       <div className="grid grid-cols-2 gap-6">
         <div className="rounded-xl p-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
           <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-sm font-semibold mb-4">Top diagnoses / lesions</h2>
-          {diagnosisData.length === 0 ? <p className="text-sm text-center py-10" style={{ color: COLORS.inkSoft }}>No consultations recorded in this period.</p> : (
+          {diagnosisData.length === 0 ? <p className="text-sm text-center py-10" style={{ color: COLORS.inkSoft }}>No diagnoses recorded in this period.</p> : (
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={diagnosisData} layout="vertical" margin={{ left: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={COLORS.line} />
