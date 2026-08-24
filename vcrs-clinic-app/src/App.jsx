@@ -1396,7 +1396,7 @@ function ageGroup(age) {
   return "60+";
 }
 
-function ReportsView({ data, setView }) {
+function ReportsView({ data, setView, openPrint }) {
   const today = todayISO();
   const firstOfMonth = today.slice(0, 8) + "01";
   const [from, setFrom] = useState(firstOfMonth);
@@ -1462,9 +1462,39 @@ function ReportsView({ data, setView }) {
     { label: "New patients", value: newPatients.length, view: "patients" },
     { label: "Appointments", value: appointments.length, view: "appointments" },
     { label: "Consultations", value: consultations.length, view: "consultations" },
-    { label: "Revenue collected", value: fmtMoney(revenuePaid), mono: true, view: "billing" },
+        { label: "Revenue collected", value: fmtMoney(revenuePaid), mono: true, view: "billing" },
     { label: "Outstanding", value: fmtMoney(revenueUnpaid), mono: true, view: "billing" },
   ];
+
+  const exportCSV = () => {
+    const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = [];
+    rows.push(["VCRS Clinic Suite - Report", `${from} to ${to}`]);
+    rows.push([]);
+    rows.push(["Summary"]);
+    stats.forEach((s) => rows.push([s.label, s.value]));
+    rows.push([]);
+    rows.push(["Patients by gender"]);
+    rows.push(["Gender", "Count"]);
+    genderData.forEach((g) => rows.push([g.name, g.value]));
+    rows.push([]);
+    rows.push(["Patients by age group"]);
+    rows.push(["Age group", "Count"]);
+    ageData.forEach((a) => rows.push([a.name, a.count]));
+    rows.push([]);
+    rows.push(["Top diagnoses / lesions"]);
+    rows.push(["Diagnosis", "Count"]);
+    diagnosisData.forEach((d) => rows.push([d.name, d.count]));
+    const csv = rows.map((r) => r.map(esc).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vcrs-report-${from}-to-${to}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <header className="flex items-center justify-between mb-6 flex-wrap gap-3">
@@ -1475,10 +1505,15 @@ function ReportsView({ data, setView }) {
         <div className="flex items-center gap-2">
           <TextInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: "150px" }} />
           <span style={{ color: COLORS.inkSoft }} className="text-sm">to</span>
-          <TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: "150px" }} />
+                    <TextInput type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: "150px" }} />
+          <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, color: COLORS.ink }}>
+            <Download size={15} /> CSV
+          </button>
+          <button onClick={() => openPrint({ type: "report", reportData: { from, to, stats, genderData, ageData, diagnosisData } })} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, color: COLORS.ink }}>
+            <Printer size={15} /> PDF
+          </button>
         </div>
       </header>
-
       <div className="grid grid-cols-5 gap-3 mb-8">
       {stats.map((s) => (
           <div key={s.label} onClick={() => s.view && setView(s.view)} className="rounded-xl p-4" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}`, cursor: s.view ? "pointer" : "default" }}>
@@ -1805,6 +1840,77 @@ function CombinedPrintDocument({ casePaper, anxietyScreening, prescription, bill
     </div>
   );
 }
+function ReportPrintDocument({ reportData, data }) {
+  const doctorName = getSetting(data, "doctor_name");
+  const doctorQualification = getSetting(data, "doctor_qualification");
+  const clinicName = getSetting(data, "clinic_name") || "Your Clinic Name";
+  const { from, to, stats, genderData, ageData, diagnosisData } = reportData;
+  return (
+    <div id="printable-area" style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "8px", marginBottom: "12px" }}>
+        <div style={{ flex: 1, textAlign: "left" }}>
+          {getSetting(data, "logo_left_url") && (
+            <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "65px", display: "block" }} />
+          )}
+        </div>
+        <div style={{ flex: 2, textAlign: "center" }}>
+          {doctorName && <p style={{ fontSize: "14px", margin: 0, fontWeight: 700 }}>{doctorName}{doctorQualification ? `. ${doctorQualification}` : ""}</p>}
+          <p style={{ fontSize: "10.5px", margin: "3px 0 0", fontWeight: 600 }}>{clinicName}</p>
+        </div>
+        <div style={{ flex: 1, textAlign: "right" }}>
+          {getSetting(data, "logo_right_url") && (
+            <img src={getSetting(data, "logo_right_url")} alt="Integrative Health Logo" style={{ height: "65px", marginLeft: "auto", display: "block" }} />
+          )}
+        </div>
+      </div>
+
+      <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Clinic Report</h2>
+      <p style={{ textAlign: "center", fontSize: "12px", margin: "6px 0 16px" }}>{fmtDate(from)} to {fmtDate(to)}</p>
+
+      <table style={{ width: "100%", fontSize: "13px", marginBottom: "18px", borderCollapse: "collapse" }}>
+        <tbody>
+          {stats.map((s) => (
+            <tr key={s.label}><td style={{ padding: "5px 0" }}>{s.label}</td><td style={{ textAlign: "right", fontWeight: 600 }}>{s.value}</td></tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3 style={{ fontSize: "13px", fontWeight: 700, marginBottom: "6px" }}>Patients by gender</h3>
+      <table style={{ width: "100%", fontSize: "12px", marginBottom: "16px", borderCollapse: "collapse" }}>
+        <tbody>
+          {genderData.length === 0 ? <tr><td style={{ padding: "4px 0" }}>No patients seen in this period.</td></tr> : genderData.map((g) => (
+            <tr key={g.name}><td style={{ padding: "4px 0", borderBottom: "1px solid #EEF2F0" }}>{g.name}</td><td style={{ textAlign: "right", borderBottom: "1px solid #EEF2F0" }}>{g.value}</td></tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3 style={{ fontSize: "13px", fontWeight: 700, marginBottom: "6px" }}>Patients by age group</h3>
+      <table style={{ width: "100%", fontSize: "12px", marginBottom: "16px", borderCollapse: "collapse" }}>
+        <tbody>
+          {ageData.length === 0 ? <tr><td style={{ padding: "4px 0" }}>No patients seen in this period.</td></tr> : ageData.map((a) => (
+            <tr key={a.name}><td style={{ padding: "4px 0", borderBottom: "1px solid #EEF2F0" }}>{a.name}</td><td style={{ textAlign: "right", borderBottom: "1px solid #EEF2F0" }}>{a.count}</td></tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3 style={{ fontSize: "13px", fontWeight: 700, marginBottom: "6px" }}>Top diagnoses / lesions</h3>
+      <table style={{ width: "100%", fontSize: "12px", marginBottom: "16px", borderCollapse: "collapse" }}>
+        <tbody>
+          {diagnosisData.length === 0 ? <tr><td style={{ padding: "4px 0" }}>No diagnoses recorded in this period.</td></tr> : diagnosisData.map((d) => (
+            <tr key={d.name}><td style={{ padding: "4px 0", borderBottom: "1px solid #EEF2F0" }}>{d.name}</td><td style={{ textAlign: "right", borderBottom: "1px solid #EEF2F0" }}>{d.count}</td></tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ marginTop: "50px", textAlign: "right", fontSize: "13px" }}>
+        {getSetting(data, "doctor_signature_url") && (
+          <img src={getSetting(data, "doctor_signature_url")} alt="Signature" style={{ height: "50px", marginLeft: "auto", display: "block" }} />
+        )}
+        <p style={{ borderTop: "1px solid #16302B", display: "inline-block", paddingTop: "4px", marginTop: getSetting(data, "doctor_signature_url") ? "4px" : "60px" }}>Doctor's Signature</p>
+      </div>
+    </div>
+  );
+}
 function PrintModal({ printTarget, patient, data, onClose }) {
   if (!printTarget) return null;
   return (
@@ -1818,12 +1924,14 @@ function PrintModal({ printTarget, patient, data, onClose }) {
           </div>
         </div>
                 <div className="print-scroll overflow-y-auto">
-            {printTarget.type === "combined" ? (
+                       {printTarget.type === "combined" ? (
                            <CombinedPrintDocument casePaper={printTarget.casePaper} anxietyScreening={printTarget.anxietyScreening} prescription={printTarget.prescription} bill={printTarget.bill} patient={patient} data={data} />
+            ) : printTarget.type === "report" ? (
+              <ReportPrintDocument reportData={printTarget.reportData} data={data} />
             ) : (
               <PrintDocument type={printTarget.type} record={printTarget.record} patient={patient} data={data} />
             )}
-          </div>  
+                </div>  
       </div>
     </div>
   );
@@ -2102,7 +2210,7 @@ const [loadError, setLoadError] = useState("");
      <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
 
        {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
-       {view === "reports" && <ReportsView data={data} setView={setView} />} 
+       {view === "reports" && <ReportsView data={data} setView={setView} openPrint={setPrintTarget} />} 
        {view === "patients" && !activePatient && (
    <PatientsList patients={filteredPatients} billing={data.billing || []} search={search} setSearch={setSearch} onAdd={() => setModal({ moduleKey: "patients" })} onOpen={goToPatient} onEdit={(p) => setModal({ moduleKey: "patients", initial: p })} onDelete={(p) => openDelete("patients", p)} />     
    )}
@@ -2136,7 +2244,7 @@ const [loadError, setLoadError] = useState("");
       {printTarget && (
         <PrintModal
           printTarget={printTarget}
-                      patient={patients.find((p) => p.id === (printTarget.type === "combined" ? printTarget.patientId : printTarget.record.patient_id))}
+                                patient={printTarget.type === "report" ? null : patients.find((p) => p.id === (printTarget.type === "combined" ? printTarget.patientId : printTarget.record.patient_id))}            
           data={data}
           onClose={() => setPrintTarget(null)}
         />
