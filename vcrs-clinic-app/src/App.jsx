@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
     ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope, Brain,
- TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download,
+  TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download, Ruler,
 } from "lucide-react";
   import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -45,7 +45,29 @@ const gad7Severity = (total) => {
   if (total >= 15) return { band: "Severe", guidance: "Active treatment indicated - combined psychotherapy (CBT) and pharmacotherapy per clinical judgement; consider psychiatry referral and screen for comorbid depression / suicidality." };
   if (total >= 10) return { band: "Moderate", guidance: "Consider structured psychological intervention (CBT) and/or pharmacotherapy (e.g. SSRI/SNRI, per clinical judgement); closer follow-up recommended." };
   if (total >= 5) return { band: "Mild", guidance: "Consider psychoeducation, guided self-help and lifestyle measures; reassess in 2-4 weeks; step up to a low-intensity CBT-based intervention if symptoms persist." };
-  return { band: "Minimal", guidance: "Watchful waiting with reassurance and psychoeducation; reassess if symptoms persist or worsen." };
+    return { band: "Minimal", guidance: "Watchful waiting with reassurance and psychoeducation; reassess if symptoms persist or worsen." };
+};
+/* OSMF Assessment — More's Clinical (S1-S4) + Functional (M1-M4) staging, More et al. 2007. */
+const osmfClinicalStage = (bandsOther, bandsBuccal, malignant) => {
+  let stage = "S1";
+  if (bandsBuccal === "Yes") stage = "S2";
+  if (bandsOther === "Yes") stage = "S3";
+  if (malignant && malignant !== "None") stage = "S4";
+  return stage;
+};
+const osmfFunctionalStage = (mmValue) => {
+  const mm = parseFloat(mmValue);
+  if (isNaN(mm)) return "—";
+  if (mm >= 35) return "M1";
+  if (mm >= 25) return "M2";
+  if (mm >= 15) return "M3";
+  return "M4";
+};
+const OSMF_STAGE_GUIDANCE = {
+  M1: "Early / mild trismus. Habit cessation counseling; consider intralesional steroid/hyaluronidase per clinical judgement; review in 4-6 weeks.",
+  M2: "Moderate trismus. Intralesional medical therapy plus mouth-opening physiotherapy; review in 2-4 weeks.",
+  M3: "Moderately severe trismus. Combination medical therapy with physiotherapy; evaluate for surgical release if non-responsive; biopsy any suspicious area.",
+  M4: "Severe trismus. Surgical intervention (fibrotomy/fibrectomy with reconstruction) typically indicated; assess closely for malignant transformation; consider multidisciplinary referral.",
 };
 
 /* Neurodivergent Reset Plan — default template text per phase.
@@ -334,7 +356,29 @@ const MODULES = [
       { name: "Clinician Notes", db: "clinician_notes", type: "textarea", rows: 3 },
       { name: "Status", db: "status", type: "select", options: ["Open", "Reviewed"] },
     ],
-    listColumns: ["Patient ID", "Screening Date", "Total Score", "Severity Band", "Status"],
+        listColumns: ["Patient ID", "Screening Date", "Total Score", "Severity Band", "Status"],
+  },
+  {
+    key: "osmfassessment", label: "OSMF Assessment", table: "osmf_assessments", icon: Ruler, category: "Clinical",
+    displayIdField: null, audit: true,
+    fields: [
+      { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
+      { name: "Assessment Date", db: "assessment_date", type: "date", required: true },
+      { name: "Habit", db: "habit_type", type: "text" },
+      { name: "Habit Frequency & Duration", db: "habit_frequency_duration", type: "text" },
+      { name: "Habit Quit Date", db: "habit_quit_date", type: "date" },
+      { name: "Burning Sensation", db: "burning_sensation", type: "select", options: ["None", "Mild", "Moderate", "Severe"] },
+      { name: "Mouth Opening (mm)", db: "mouth_opening_mm", type: "number", required: true },
+      { name: "Blanching / Stomatitis", db: "blanching", type: "select", options: ["Yes", "No"] },
+      { name: "Fibrous Bands — Buccal Mucosa / Oropharynx", db: "bands_buccal_oropharynx", type: "select", options: ["Yes", "No"] },
+      { name: "Fibrous Bands — Other Oral Sites (Lips, Palate, Tongue)", db: "bands_other_sites", type: "select", options: ["Yes", "No"] },
+      { name: "Associated Lesion", db: "malignant_lesion", type: "select", options: ["None", "Leukoplakia", "Erythroplakia", "Suspected Malignancy / Carcinoma"] },
+      { name: "Functional Stage", db: "functional_stage", type: "text", computed: true },
+      { name: "Clinical Stage", db: "clinical_stage", type: "text", computed: true },
+      { name: "Clinician Notes", db: "clinician_notes", type: "textarea", rows: 3 },
+      { name: "Status", db: "status", type: "select", options: ["Open", "Reviewed"] },
+    ],
+    listColumns: ["Patient ID", "Assessment Date", "Clinical Stage", "Functional Stage", "Status"],
   },
   {
     key: "neurodivergentplan", label: "Neurodivergent Reset Plan", table: "neurodivergent_reset_plans", icon: ClipboardList, category: "Clinical",
@@ -470,7 +514,8 @@ function recordLabel(module, rec) {
   if (module.key === "billing") return `${rec.description || "Bill"} · ${fmtMoney(rec.net_amount ?? rec.amount)}`;
   if (module.key === "researchprojects") return rec.title || rec.project_id;
     if (module.key === "users") return rec.full_name || rec.username;
-  if (module.key === "anxietyscreening") return `GAD-7 - ${rec.total_score ?? "—"}${rec.severity_band ? ` (${rec.severity_band})` : ""} - ${fmtDate(rec.screening_date)}`;
+    if (module.key === "anxietyscreening") return `GAD-7 - ${rec.total_score ?? "—"}${rec.severity_band ? ` (${rec.severity_band})` : ""} - ${fmtDate(rec.screening_date)}`;
+  if (module.key === "osmfassessment") return `OSMF Assessment - ${rec.clinical_stage || ""}${rec.functional_stage || ""} - ${fmtDate(rec.assessment_date)}`;
   if (module.key === "neurodivergentplan") return `Neurodivergent Reset Plan - ${fmtDate(rec.plan_date)}${rec.status ? ` (${rec.status})` : ""}`;
   const firstText = module.fields.find((f) => f.type === "text");
   return (firstText && rec[firstText.db]) || (module.displayIdField && rec[module.displayIdField]) || "Record";
@@ -825,7 +870,11 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
     if (module.key === "anxietyscreening") {
       const total = GAD7_ITEMS.reduce((sum, name) => sum + (parseInt(form[name], 10) || 0), 0);
       payload.total_score = total;
-      payload.severity_band = gad7Severity(total).band;
+           payload.severity_band = gad7Severity(total).band;
+    }
+    if (module.key === "osmfassessment") {
+      payload.clinical_stage = osmfClinicalStage(form["Fibrous Bands — Other Oral Sites (Lips, Palate, Tongue)"], form["Fibrous Bands — Buccal Mucosa / Oropharynx"], form["Associated Lesion"]);
+      payload.functional_stage = osmfFunctionalStage(form["Mouth Opening (mm)"]);
     }
     onSave(payload);
   };
@@ -913,7 +962,24 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
               </Field>
             );
           }
-          if (field.db === "severity_band") return null;
+                    if (field.db === "severity_band") return null;
+          if (field.db === "functional_stage") {
+            const cStage = osmfClinicalStage(form["Fibrous Bands — Other Oral Sites (Lips, Palate, Tongue)"], form["Fibrous Bands — Buccal Mucosa / Oropharynx"], form["Associated Lesion"]);
+            const mStage = osmfFunctionalStage(form["Mouth Opening (mm)"]);
+            return (
+              <Field key={field.name} label="OSMF Staging (More's Clinical + Functional)">
+                <div className="rounded-lg px-3 py-3 space-y-1.5" style={{ background: COLORS.sage }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: COLORS.inkSoft }}>Combined stage</span>
+                    <span style={{ fontFamily: "IBM Plex Mono, monospace", color: COLORS.ink }} className="text-sm font-semibold">{cStage}{mStage}</span>
+                  </div>
+                  <p className="text-xs" style={{ color: COLORS.inkSoft }}>{OSMF_STAGE_GUIDANCE[mStage] || "Enter mouth opening to see guidance."}</p>
+                  <p className="text-[10px] italic" style={{ color: COLORS.inkSoft }}>Staging reference only (More, 2007) - clinical correlation and management per treating clinician's judgement.</p>
+                </div>
+              </Field>
+            );
+          }
+          if (field.db === "clinical_stage") return null;
           const amt = parseFloat(form["Amount"]) || 0, disc = parseFloat(form["Discount"]) || 0, tax = parseFloat(form["Tax"]) || 0;
           return (
             <Field key={field.name} label={field.name}>
@@ -1167,9 +1233,9 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
 /* ---------------------------------------------------------------
    Patient chart
 ------------------------------------------------------------------ */
-const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "casepapers", "anxietyscreening", "neurodivergentplan", "billing", "payments", "clinicalphotos", "samples"];
-const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology", "casepapers", "anxietyscreening", "neurodivergentplan"];
-const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology", casepapers: "casepaper", anxietyscreening: "anxietyscreening", neurodivergentplan: "neurodivergentplan" };
+const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan", "billing", "payments", "clinicalphotos", "samples"];
+const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan"];
+const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology", casepapers: "casepaper", anxietyscreening: "anxietyscreening", osmfassessment: "osmfassessment", neurodivergentplan: "neurodivergentplan" };
 function ChartSection({ title, icon: Icon, onAdd, empty, children, count }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : !!children;
   return (
@@ -1626,8 +1692,8 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
           {patient?.patient_id && <>Patient ID: {patient.patient_id}</>}
         </div>
       <div style={{ textAlign: "right" }}>
-                  <strong>Date:</strong> {fmtDate(type === "histopathology" ? (record.report_date || record.created_on) : type === "casepaper" ? (record.visit_date || record.created_on) : type === "anxietyscreening" ? (record.screening_date || record.created_on) : type === "neurodivergentplan" ? (record.plan_date || record.created_on) : record.created_on || todayISO())}<br />
-          <strong>{type === "bill" ? "Bill No" : type === "prescription" ? "Rx No" : type === "casepaper" ? "OPD No" : type === "anxietyscreening" ? "Screening" : type === "neurodivergentplan" ? "Plan" : "Histopath No"}:</strong> {type === "bill" ? record.bill_id : type === "prescription" ? record.prescription_id : type === "casepaper" ? (record.opd_no || record.case_id) : type === "anxietyscreening" ? "GAD-7" : type === "neurodivergentplan" ? "Reset Plan" : (record.histopath_no || record.histo_id)}  
+                          <strong>Date:</strong> {fmtDate(type === "histopathology" ? (record.report_date || record.created_on) : type === "casepaper" ? (record.visit_date || record.created_on) : type === "anxietyscreening" ? (record.screening_date || record.created_on) : type === "osmfassessment" ? (record.assessment_date || record.created_on) : type === "neurodivergentplan" ? (record.plan_date || record.created_on) : record.created_on || todayISO())}<br />
+          <strong>{type === "bill" ? "Bill No" : type === "prescription" ? "Rx No" : type === "casepaper" ? "OPD No" : type === "anxietyscreening" ? "Screening" : type === "osmfassessment" ? "Stage" : type === "neurodivergentplan" ? "Plan" : "Histopath No"}:</strong> {type === "bill" ? record.bill_id : type === "prescription" ? record.prescription_id : type === "casepaper" ? (record.opd_no || record.case_id) : type === "anxietyscreening" ? "GAD-7" : type === "osmfassessment" ? `${record.clinical_stage || "—"}${record.functional_stage || ""}` : type === "neurodivergentplan" ? "Reset Plan" : (record.histopath_no || record.histo_id)}          
         {(type === "histopathology" || type === "casepaper") && record.received_date && <><br /><strong>Received:</strong> {fmtDate(record.received_date)}</>}
           {(type === "histopathology" || type === "casepaper") && record.referred_by && <><br /><strong>Referred by:</strong> {record.referred_by}</>}
         </div> 
@@ -1703,6 +1769,33 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
             <p style={{ margin: 0, fontWeight: 700 }}>Total Score: {record.total_score ?? "—"} / 21 - {record.severity_band || "—"}</p>
             <p style={{ margin: "6px 0 0" }}>{gad7Severity(record.total_score || 0).guidance}</p>
             <p style={{ margin: "6px 0 0", fontSize: "10.5px", fontStyle: "italic" }}>General guidance for clinician review - not a diagnosis or treatment directive.</p>
+          </div>
+          {record.clinician_notes && (
+            <div style={{ marginTop: "14px", fontSize: "13px" }}>
+              <strong>Clinician Notes:</strong>
+              <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.clinician_notes}</p>
+            </div>
+          )}
+                </>
+      ) : type === "osmfassessment" ? (
+        <>
+          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Oral Submucous Fibrosis Assessment</h2>
+          <table style={{ width: "100%", fontSize: "13px", marginTop: "12px", borderCollapse: "collapse" }}>
+            <tbody>
+              <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Habit</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{record.habit_type || "—"}{record.habit_frequency_duration ? ` (${record.habit_frequency_duration})` : ""}</td></tr>
+              {record.habit_quit_date && <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Habit Quit Date</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{fmtDate(record.habit_quit_date)}</td></tr>}
+              <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Burning Sensation</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{record.burning_sensation || "—"}</td></tr>
+              <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Mouth Opening</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{record.mouth_opening_mm ? `${record.mouth_opening_mm} mm` : "—"}</td></tr>
+              <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Blanching / Stomatitis</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{record.blanching || "—"}</td></tr>
+              <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Fibrous Bands — Buccal/Oropharynx</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{record.bands_buccal_oropharynx || "—"}</td></tr>
+              <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Fibrous Bands — Other Sites</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{record.bands_other_sites || "—"}</td></tr>
+              <tr><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>Associated Lesion</td><td style={{ padding: "5px 6px", border: "1px solid #DCE3DD" }}>{record.malignant_lesion || "—"}</td></tr>
+            </tbody>
+          </table>
+          <div style={{ marginTop: "14px", fontSize: "13px" }}>
+            <p style={{ margin: 0, fontWeight: 700 }}>Combined Stage: {record.clinical_stage || "—"}{record.functional_stage || ""}</p>
+            <p style={{ margin: "6px 0 0" }}>{OSMF_STAGE_GUIDANCE[record.functional_stage] || "—"}</p>
+            <p style={{ margin: "6px 0 0", fontSize: "10.5px", fontStyle: "italic" }}>Staging reference only (More, 2007) - clinical correlation and management per treating clinician's judgement.</p>
           </div>
           {record.clinician_notes && (
             <div style={{ marginTop: "14px", fontSize: "13px" }}>
@@ -2234,7 +2327,7 @@ const [loadError, setLoadError] = useState("");
       </main>
 
       {modal && (
-      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology", "casepapers", "anxietyscreening", "neurodivergentplan"].includes(modal.moduleKey)}>  
+      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan"].includes(modal.moduleKey)}>  
       <GenericForm module={MODULES_BY_KEY[modal.moduleKey]} initial={modal.initial} data={data} defaultValues={modal.defaultValues} lockedFields={modal.lockedFields}
             fkFilter={modal.moduleKey === "payments" && modal.defaultValues?.["Patient ID"] ? { "Bill ID": (opts) => opts.filter((b) => b.patient_id === modal.defaultValues["Patient ID"]) } : undefined}
             onSave={(payload) => saveRecord(modal.moduleKey, payload)} saving={saving} />
