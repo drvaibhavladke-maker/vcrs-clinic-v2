@@ -152,7 +152,7 @@ const NDRP_EXPECTED_OUTCOMES = "Expected outcomes (6-12 weeks): improved daily s
    integrity, matching the Supabase schema).
 ------------------------------------------------------------------ */
 const PRESCRIPTION_PROTOCOL_DEFAULT = `Modify the Routine / Lifestyle Advice
-1) Morning exercise — 30 minutes
+1) Morning Walk/ exercise — 30 minutes
 2) Reduce stress / anxiety — meditation
 3) Drink lukewarm water on waking up — ½ to 1 glass every day
 4) Regular sleep pattern
@@ -161,10 +161,18 @@ const PRESCRIPTION_PROTOCOL_DEFAULT = `Modify the Routine / Lifestyle Advice
 
 Medicines
 - Cap Antoxid HC (30): 0 – 0 – 1 × 30 days
+- Tab SM-Fibro: 0 – 0 – 1 × 30 days
+- Tab Pregal M: 0 – 0 – 1 × 30 days
+- Trimtee-M 10 (Tab Amitriptyline 10 mg + Methylcobalamine 1500mcg): 0 – 0 – 1 × 30 days
 - Tab Viabact (15): 0 – 0 – 1 × 15 days
 - Tab Shelcal 500 mg (30): 0 – 0 – 1 × 15 days
 - Tab Neurobione Forte (30): 0 – 0 – 1 × 15 days
 - Tab Folic Acid (30): 0 – 0 – 1 × 15 days
+- Tab Wysolone 20 mg: 1 – 0 – 1 × 3 days
+- Tab Wysolone 15 mg: 1 – 0 – 1 × 3 days
+- Tab Wysolone 10 mg: 1 – 0 – 1 × 3 days
+- Tab Wysolone 5 mg: 1 – 0 – 1 × 3 days
+- Tab Wysolone 5 mg: 1 – 0 – 0 × 3 days
 - Cholecalciferol sachet 10: one per day for 7 days
 - Tab Deworm: 1 tablet, every 6 months
 - Chewable Jeshtmadh Ghanvati — 15 days: chew 2–3 tablets per day
