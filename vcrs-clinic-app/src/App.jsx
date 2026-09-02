@@ -440,13 +440,30 @@ const MODULES = [
     key: "researchprojects", label: "Research Projects", table: "research_projects", icon: Microscope, category: "Research",
     displayIdField: "project_id", audit: true,
     fields: [
-      { name: "Title", db: "title", type: "text", required: true },
+            { name: "Title", db: "title", type: "text", required: true },
       { name: "Principal Investigator", db: "principal_investigator", type: "text" },
+      { name: "Guide", db: "guide", type: "text" },
+      { name: "Co-Guide(s)", db: "co_guides", type: "text" },
+      { name: "Course / Specialization", db: "course_specialization", type: "text" },
+      { name: "Date of Admission", db: "date_of_admission", type: "text" },
       { name: "Department", db: "department", type: "text" },
       { name: "Funding Agency", db: "funding_agency", type: "text" },
       { name: "Status", db: "status", type: "select", options: ["Ongoing", "Completed", "On Hold"] },
       { name: "Start Date", db: "start_date", type: "date" },
       { name: "End Date", db: "end_date", type: "date" },
+      { name: "Synopsis Document", db: "synopsis_url", type: "file", bucket: "documents", accept: ".docx" },
+      { name: "Need for the Study", db: "need_for_study", type: "textarea", rows: 4 },
+      { name: "Research Gap & Question", db: "research_gap_question", type: "textarea", rows: 3 },
+      { name: "Review of Literature", db: "review_of_literature", type: "textarea", rows: 6 },
+      { name: "Aim of the Study", db: "aim_of_study", type: "textarea", rows: 2 },
+      { name: "Objectives", db: "objectives", type: "textarea", rows: 4 },
+      { name: "Study Site", db: "study_site", type: "text" },
+      { name: "Methodology", db: "methodology", type: "textarea", rows: 8 },
+      { name: "Duration of Study", db: "duration_of_study", type: "text" },
+      { name: "Method of Data Analysis", db: "data_analysis_method", type: "textarea", rows: 3 },
+      { name: "Ethical Clearance (Human/Animal Intervention)", db: "ethical_clearance", type: "textarea", rows: 2 },
+      { name: "References", db: "references_list", type: "textarea", rows: 8 },
+      { name: "Budget Management", db: "budget_management", type: "textarea", rows: 4 },
     ],
     listColumns: ["Title", "Principal Investigator", "Department", "Status"],
   },
@@ -832,7 +849,9 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
   const set = (name) => (e) => setForm((f) => ({ ...f, [name]: e.target.value })); 
   const [aiNotes, setAiNotes] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
+    const [aiError, setAiError] = useState("");
+  const [synopsisLoading, setSynopsisLoading] = useState(false);
+  const [synopsisError, setSynopsisError] = useState("");
     const [annotateSrc, setAnnotateSrc] = useState(null);
   const [annotateField, setAnnotateField] = useState(null);
   const [annotateBucket, setAnnotateBucket] = useState(null);
@@ -863,6 +882,48 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
       setAiError(err.message);
     } finally {
       setAiLoading(false);
+    }
+  };
+
+    const extractFromSynopsis = async () => {
+    if (!form["Synopsis Document"]) return;
+    setSynopsisLoading(true);
+    setSynopsisError("");
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      const res = await fetch("/api/ai-research-synopsis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ fileUrl: form["Synopsis Document"] }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "AI request failed");
+      setForm((f) => ({
+        ...f,
+        Title: json.title || f.Title,
+        "Principal Investigator": json.principalInvestigator || f["Principal Investigator"],
+        Guide: json.guide || f.Guide,
+        "Co-Guide(s)": json.coGuides || f["Co-Guide(s)"],
+        "Course / Specialization": json.courseSpecialization || f["Course / Specialization"],
+        "Date of Admission": json.dateOfAdmission || f["Date of Admission"],
+        "Need for the Study": json.needForStudy || f["Need for the Study"],
+        "Research Gap & Question": json.researchGapQuestion || f["Research Gap & Question"],
+        "Review of Literature": json.reviewOfLiterature || f["Review of Literature"],
+        "Aim of the Study": json.aimOfStudy || f["Aim of the Study"],
+        Objectives: json.objectives || f.Objectives,
+        "Study Site": json.studySite || f["Study Site"],
+        Methodology: json.methodology || f.Methodology,
+        "Duration of Study": json.durationOfStudy || f["Duration of Study"],
+        "Method of Data Analysis": json.dataAnalysisMethod || f["Method of Data Analysis"],
+        "Ethical Clearance (Human/Animal Intervention)": json.ethicalClearance || f["Ethical Clearance (Human/Animal Intervention)"],
+        References: json.referencesList || f.References,
+        "Budget Management": json.budgetManagement || f["Budget Management"],
+      }));
+    } catch (err) {
+      setSynopsisError(err.message);
+    } finally {
+      setSynopsisLoading(false);
     }
   };
 
@@ -924,7 +985,25 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
           {aiError && <p className="text-xs" style={{ color: COLORS.rose }}>{aiError}</p>}
         </div>
       )}
-      {module.fields.map((field) => {
+      {module.key === "researchprojects" && (
+  <div className="rounded-lg p-3 space-y-2" style={{ background: COLORS.sage, border: `1px solid ${COLORS.line}` }}>
+    <p className="text-xs font-semibold" style={{ color: COLORS.ink }}>✨ AI Assist — extract from uploaded synopsis</p>
+    <p className="text-xs" style={{ color: COLORS.inkSoft }}>Upload the synopsis document below first, then click Extract. Review and edit everything before saving — this is a starting point, not a final record.</p>
+    <button
+      type="button"
+      onClick={extractFromSynopsis}
+      disabled={synopsisLoading || !form["Synopsis Document"]}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"
+      style={{ background: COLORS.teal, color: "#fff" }}
+    >
+      {synopsisLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+      {synopsisLoading ? "Extracting…" : "Extract from Uploaded Synopsis"}
+    </button>
+    {!form["Synopsis Document"] && <p className="text-xs" style={{ color: COLORS.inkSoft }}>Upload the Synopsis Document (below) first to enable this.</p>}
+    {synopsisError && <p className="text-xs" style={{ color: COLORS.rose }}>{synopsisError}</p>}
+  </div>
+)}
+{module.fields.map((field) => {
         const locked = lockedFields?.includes(field.name);
         if (field.type === "fk") {
           const targetModule = MODULES_BY_KEY[field.module];
@@ -2335,7 +2414,7 @@ const [loadError, setLoadError] = useState("");
       </main>
 
       {modal && (
-      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan"].includes(modal.moduleKey)}>  
+      <Modal title={modal.initial ? `Edit ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}` : `New ${MODULES_BY_KEY[modal.moduleKey].label.replace(/s$/, "")}`} onClose={() => setModal(null)} wide={["billing", "prescriptions", "consultations", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan", "researchprojects"].includes(modal.moduleKey)}>  
       <GenericForm module={MODULES_BY_KEY[modal.moduleKey]} initial={modal.initial} data={data} defaultValues={modal.defaultValues} lockedFields={modal.lockedFields}
             fkFilter={modal.moduleKey === "payments" && modal.defaultValues?.["Patient ID"] ? { "Bill ID": (opts) => opts.filter((b) => b.patient_id === modal.defaultValues["Patient ID"]) } : undefined}
             onSave={(payload) => saveRecord(modal.moduleKey, payload)} saving={saving} />
