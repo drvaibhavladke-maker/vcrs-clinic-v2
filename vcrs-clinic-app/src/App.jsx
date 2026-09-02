@@ -1321,8 +1321,8 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
    Patient chart
 ------------------------------------------------------------------ */
 const CHART_MODULES = ["appointments", "consultations", "prescriptions", "laboratory", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan", "billing", "payments", "clinicalphotos", "samples"];
-const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan"];
-const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology", casepapers: "casepaper", anxietyscreening: "anxietyscreening", osmfassessment: "osmfassessment", neurodivergentplan: "neurodivergentplan" };
+const PRINTABLE_MODULES = ["billing", "prescriptions", "histopathology", "casepapers", "anxietyscreening", "osmfassessment", "neurodivergentplan", "researchprojects"];
+const PRINT_TYPE_BY_MODULE = { billing: "bill", prescriptions: "prescription", histopathology: "histopathology", casepapers: "casepaper", anxietyscreening: "anxietyscreening", osmfassessment: "osmfassessment", neurodivergentplan: "neurodivergentplan", researchprojects: "researchproject" };
 function ChartSection({ title, icon: Icon, onAdd, empty, children, count }) {
   const hasChildren = Array.isArray(children) ? children.length > 0 : !!children;
   return (
@@ -2082,6 +2082,84 @@ function ReportPrintDocument({ reportData, data }) {
         </tbody>
       </table>
 
+           <div style={{ marginTop: "50px", textAlign: "right", fontSize: "13px" }}>
+        {getSetting(data, "doctor_signature_url") && (
+          <img src={getSetting(data, "doctor_signature_url")} alt="Signature" style={{ height: "50px", marginLeft: "auto", display: "block" }} />
+        )}
+        <p style={{ borderTop: "1px solid #16302B", display: "inline-block", paddingTop: "4px", marginTop: getSetting(data, "doctor_signature_url") ? "4px" : "60px" }}>Doctor's Signature</p>
+      </div>
+    </div>
+  );
+}
+function ResearchProjectPrintDocument({ record, data }) {
+  const doctorName = getSetting(data, "doctor_name");
+  const doctorQualification = getSetting(data, "doctor_qualification");
+  const clinicName = getSetting(data, "clinic_name") || "Your Clinic Name";
+  return (
+    <div id="printable-area" style={{ fontFamily: "Inter, sans-serif", color: "#16302B", padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "2px solid #1F5F52", paddingBottom: "8px", marginBottom: "12px" }}>
+        <div style={{ flex: 1, textAlign: "left" }}>
+          {getSetting(data, "logo_left_url") && (
+            <img src={getSetting(data, "logo_left_url")} alt="Specialty Logo" style={{ height: "65px", display: "block" }} />
+          )}
+        </div>
+        <div style={{ flex: 2, textAlign: "center" }}>
+          {doctorName && <p style={{ fontSize: "14px", margin: 0, fontWeight: 700 }}>{doctorName}{doctorQualification ? `. ${doctorQualification}` : ""}</p>}
+          <p style={{ fontSize: "10.5px", margin: "3px 0 0", fontWeight: 600 }}>{clinicName}</p>
+        </div>
+        <div style={{ flex: 1, textAlign: "right" }}>
+          {getSetting(data, "logo_right_url") && (
+            <img src={getSetting(data, "logo_right_url")} alt="Integrative Health Logo" style={{ height: "65px", marginLeft: "auto", display: "block" }} />
+          )}
+        </div>
+      </div>
+
+      <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "18px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>{record.title || "Research Project"}</h2>
+
+      <table style={{ width: "100%", fontSize: "12.5px", margin: "14px 0", borderCollapse: "collapse" }}>
+        <tbody>
+          {[
+            ["Guide", record.guide],
+            ["Co-Guide(s)", record.co_guides],
+            ["Course / Specialization", record.course_specialization],
+            ["Date of Admission", record.date_of_admission],
+            ["Principal Investigator", record.principal_investigator],
+            ["Department", record.department],
+            ["Funding Agency", record.funding_agency],
+            ["Status", record.status],
+            ["Start Date", record.start_date ? fmtDate(record.start_date) : ""],
+            ["End Date", record.end_date ? fmtDate(record.end_date) : ""],
+          ].filter(([, v]) => v).map(([label, value]) => (
+            <tr key={label}>
+              <td style={{ padding: "4px 8px 4px 0", fontWeight: 700, verticalAlign: "top", width: "38%" }}>{label}</td>
+              <td style={{ padding: "4px 0" }}>{value}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div style={{ fontSize: "12.5px", lineHeight: 1.6 }}>
+        {[
+          ["Need for the Study", record.need_for_study],
+          ["Research Gap & Question", record.research_gap_question],
+          ["Review of Literature", record.review_of_literature],
+          ["Aim of the Study", record.aim_of_study],
+          ["Objectives", record.objectives],
+          ["Study Site", record.study_site],
+          ["Methodology", record.methodology],
+          ["Duration of Study", record.duration_of_study],
+          ["Method of Data Analysis", record.data_analysis_method],
+          ["Ethical Clearance (Human/Animal Intervention)", record.ethical_clearance],
+          ["Budget Management", record.budget_management],
+          ["References", record.references_list],
+        ].filter(([, v]) => v).map(([label, value]) => (
+          <div key={label} style={{ marginBottom: "12px" }}>
+            <p style={{ margin: "0 0 4px", fontWeight: 700 }}>{label}</p>
+            <p style={{ margin: 0, whiteSpace: "pre-line" }}>{value}</p>
+          </div>
+        ))}
+      </div>
+
       <div style={{ marginTop: "50px", textAlign: "right", fontSize: "13px" }}>
         {getSetting(data, "doctor_signature_url") && (
           <img src={getSetting(data, "doctor_signature_url")} alt="Signature" style={{ height: "50px", marginLeft: "auto", display: "block" }} />
@@ -2106,8 +2184,10 @@ function PrintModal({ printTarget, patient, data, onClose }) {
                 <div className="print-scroll overflow-y-auto">
                        {printTarget.type === "combined" ? (
                            <CombinedPrintDocument casePaper={printTarget.casePaper} anxietyScreening={printTarget.anxietyScreening} prescription={printTarget.prescription} bill={printTarget.bill} patient={patient} data={data} />
-            ) : printTarget.type === "report" ? (
+                       ) : printTarget.type === "report" ? (
               <ReportPrintDocument reportData={printTarget.reportData} data={data} />
+            ) : printTarget.type === "researchproject" ? (
+              <ResearchProjectPrintDocument record={printTarget.record} data={data} />
             ) : (
               <PrintDocument type={printTarget.type} record={printTarget.record} patient={patient} data={data} />
             )}
@@ -2424,7 +2504,7 @@ const [loadError, setLoadError] = useState("");
       {printTarget && (
         <PrintModal
           printTarget={printTarget}
-                                patient={printTarget.type === "report" ? null : patients.find((p) => p.id === (printTarget.type === "combined" ? printTarget.patientId : printTarget.record.patient_id))}            
+                                patient={printTarget.type === "report" || printTarget.type === "researchproject" ? null : patients.find((p) => p.id === (printTarget.type === "combined" ? printTarget.patientId : printTarget.record.patient_id))}            
           data={data}
           onClose={() => setPrintTarget(null)}
         />
