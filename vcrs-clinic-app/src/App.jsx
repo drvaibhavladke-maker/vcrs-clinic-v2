@@ -1221,8 +1221,8 @@ function displayValue(module, fieldLabel, rec, data) {
   return String(raw);
 }
 
-function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onOpenFk, onPrint, noDeps }) {  const [search, setSearch] = useState("");
-  const cols = module.listColumns || module.fields.slice(0, 4).map((f) => f.name);
+function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onOpenFk, onPrint, noDeps, onSyncOrcid, orcidSyncing, orcidSyncMessage, orcidSyncError }) {  const [search, setSearch] = useState("");
+const cols = module.listColumns || module.fields.slice(0, 4).map((f) => f.name);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return records;
@@ -1267,7 +1267,38 @@ function GenericModuleView({ module, records, data, onAdd, onEdit, onDelete, onO
           </button>
           {!module.readOnly && <PrimaryButton onClick={onAdd}><Plus size={16} /> Add {module.label.replace(/s$/, "")}</PrimaryButton>}
         </div>
-      </header>
+            </header>
+      {module.key === "publications" && (
+        <div className="rounded-lg p-3 mb-5 space-y-2" style={{ background: COLORS.sage, border: `1px solid ${COLORS.line}` }}>
+          <p className="text-xs font-semibold" style={{ color: COLORS.ink }}>🔗 Publication profiles</p>
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            {getSetting(data, "orcid_id") ? (
+              <a href={`https://orcid.org/${getSetting(data, "orcid_id")}`} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: COLORS.teal }}>ORCID Profile ↗</a>
+            ) : <span style={{ color: COLORS.inkSoft }}>ORCID not linked</span>}
+            {getSetting(data, "scopus_profile_url") ? (
+              <a href={getSetting(data, "scopus_profile_url")} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: COLORS.teal }}>Scopus Profile ↗</a>
+            ) : <span style={{ color: COLORS.inkSoft }}>Scopus not linked</span>}
+            {getSetting(data, "google_scholar_url") ? (
+              <a href={getSetting(data, "google_scholar_url")} target="_blank" rel="noreferrer" className="hover:underline" style={{ color: COLORS.teal }}>Google Scholar Profile ↗</a>
+            ) : <span style={{ color: COLORS.inkSoft }}>Google Scholar not linked</span>}
+          </div>
+          <p className="text-xs" style={{ color: COLORS.inkSoft }}>Add <code>orcid_id</code>, <code>scopus_profile_url</code>, and <code>google_scholar_url</code> as entries in Settings to link your profiles. Only ORCID supports automatic sync (it has a free public API) — Scopus and Google Scholar links just open for reference, and you add those articles here manually.</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onSyncOrcid}
+              disabled={orcidSyncing || !getSetting(data, "orcid_id")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"
+              style={{ background: COLORS.teal, color: "#fff" }}
+            >
+              {orcidSyncing ? <Loader2 size={13} className="animate-spin" /> : null}
+              {orcidSyncing ? "Syncing…" : "Sync Now from ORCID"}
+            </button>
+          </div>
+          {orcidSyncMessage && <p className="text-xs" style={{ color: COLORS.ink }}>{orcidSyncMessage}</p>}
+          {orcidSyncError && <p className="text-xs" style={{ color: COLORS.rose }}>{orcidSyncError}</p>}
+        </div>
+      )}
       {!module.readOnly && (
         <div className="relative mb-5 max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: COLORS.inkSoft }} />
@@ -2272,9 +2303,12 @@ function LoginScreen() {
    Main App
 ------------------------------------------------------------------ */
 export default function App() {
-  const [printTarget, setPrintTarget] = useState(null);
+    const [printTarget, setPrintTarget] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [session, setSession] = useState(undefined);
+  const [orcidSyncing, setOrcidSyncing] = useState(false);
+  const [orcidSyncMessage, setOrcidSyncMessage] = useState("");
+  const [orcidSyncError, setOrcidSyncError] = useState("");
 const [loaded, setLoaded] = useState(false);
 const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
@@ -2341,12 +2375,70 @@ const [loadError, setLoadError] = useState("");
       if (moduleKey === "patients" && activePatient?.id === record.id) setActivePatient(record);
       logAudit(module.label, isEdit ? "Updated" : "Created", recordLabel(module, record));
       setModal(null);
-    } catch (e) {
+        } catch (e) {
       setActionError(e.message || "Something went wrong while saving.");
     } finally {
       setSaving(false);
     }
   }, [modal, activePatient, logAudit]);
+
+  const syncOrcidPublications = useCallback(async () => {
+    const orcidId = (getSetting(data, "orcid_id") || "").trim();
+    if (!orcidId) {
+      setOrcidSyncError("Add your ORCID iD in Settings first (key: orcid_id).");
+      return;
+    }
+    setOrcidSyncing(true);
+    setOrcidSyncError("");
+    setOrcidSyncMessage("");
+    try {
+      const token = session?.access_token;
+      const res = await fetch("/api/sync-orcid-publications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orcidId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Sync failed");
+      const incoming = json.publications || [];
+      const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const existing = data.publications || [];
+      const isDuplicate = (p) => existing.some((e) => {
+        if (p.doi && e.doi && norm(p.doi) === norm(e.doi)) return true;
+        if ((!p.doi || !e.doi) && p.title && e.title) {
+          if (norm(p.title) === norm(e.title) && (!p.year || !e.year || String(p.year) === String(e.year))) return true;
+        }
+        return false;
+      });
+      const toAdd = incoming.filter((p) => p.title && !isDuplicate(p));
+      let added = 0;
+      for (const p of toAdd) {
+        const record = await insertRow("publications", {
+          title: p.title,
+          journal: p.journal || null,
+          authors: p.authors || null,
+          year: p.year || null,
+          doi: p.doi || null,
+          status: "Published",
+          created_by: CURRENT_USER,
+          updated_by: CURRENT_USER,
+        });
+        setData((d) => ({ ...d, publications: [record, ...(d.publications || [])] }));
+        added += 1;
+      }
+      const skipped = incoming.length - added;
+      setOrcidSyncMessage(
+        added > 0
+          ? `Added ${added} new publication${added === 1 ? "" : "s"} from ORCID.${skipped > 0 ? ` (${skipped} already in your list, skipped.)` : ""}`
+          : `No new publications found — everything from ORCID is already in your list.`
+      );
+      if (added > 0) logAudit("Publications", "Synced", `Added ${added} new publication(s) from ORCID`);
+    } catch (e) {
+      setOrcidSyncError(e.message || "Could not sync from ORCID.");
+    } finally {
+      setOrcidSyncing(false);
+    }
+  }, [data, session, logAudit]);
 
   const deleteRecord = useCallback(async (moduleKey, record) => {
     const module = MODULES_BY_KEY[moduleKey];
@@ -2488,8 +2580,12 @@ const [loadError, setLoadError] = useState("");
             onDelete={(r) => openDelete(m.key, r)}
             onOpenFk={openFkTarget}
             onPrint={PRINTABLE_MODULES.includes(m.key) ? (r) => setPrintTarget({ type: PRINT_TYPE_BY_MODULE[m.key], record: r }) : undefined}
-            noDeps={m.fields.some((f) => f.type === "fk" && f.module === "patients") && patients.length === 0}
-          />
+                        noDeps={m.fields.some((f) => f.type === "fk" && f.module === "patients") && patients.length === 0}
+            onSyncOrcid={syncOrcidPublications}
+            orcidSyncing={orcidSyncing}
+            orcidSyncMessage={orcidSyncMessage}
+            orcidSyncError={orcidSyncError}
+            />
         ))}  
       </main>
 
