@@ -280,10 +280,16 @@ const MODULES = [
       { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
       { name: "Histopathology No.", db: "histopath_no", type: "text" },
       { name: "Referred By", db: "referred_by", type: "text" },
-      { name: "Received Date", db: "received_date", type: "date" },
+            { name: "Received Date", db: "received_date", type: "date" },
       { name: "Report Date", db: "report_date", type: "date" },
+      { name: "Clinical Examination", db: "clinical_examination", type: "textarea", rows: 3 },
+      { name: "Clinical Examination Attachments", db: "clinical_examination_attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
+      { name: "Radiological Examination", db: "radiological_examination", type: "textarea", rows: 3 },
+      { name: "Radiological Examination Attachments", db: "radiological_examination_attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
       { name: "Gross Pathology", db: "gross_pathology", type: "textarea", rows: 3 },
       { name: "Gross Photo", db: "gross_photo_url", type: "file", bucket: "documents", accept: "image/*" },
+      { name: "Histopathological Features", db: "histopathological_features", type: "textarea", rows: 4 },
+      { name: "Histopathological Features Attachments", db: "histopathological_features_attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
       { name: "Microscopic / Biopsy Report", db: "biopsy_report", type: "textarea", rows: 8 },
       { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
       { name: "Note", db: "note", type: "textarea", rows: 2 },
@@ -1841,13 +1847,64 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
     ) : type === "histopathology" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Histopathology Report</h2>
-      <div style={{ fontSize: "13px", marginTop: "14px", lineHeight: 1.7 }}>
+           <div style={{ fontSize: "13px", marginTop: "14px", lineHeight: 1.7 }}>
+            {record.clinical_examination && (
+              <div style={{ marginBottom: "14px" }}>
+                <strong>Clinical Examination:</strong>
+                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.clinical_examination}</p>
+                {Array.isArray(record.clinical_examination_attachments) && record.clinical_examination_attachments.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                    {record.clinical_examination_attachments.map((url, i) => (
+                      /\.(png|jpe?g|gif|webp)$/i.test(url) ? (
+                        <img key={i} src={url} alt="Clinical examination attachment" style={{ width: "90px", height: "90px", objectFit: "contain", borderRadius: "6px", border: "1px solid #DCE3DD", background: "#f3f4f6" }} />
+                      ) : (
+                        <a key={i} href={url} target="_blank" rel="noreferrer" style={{ fontSize: "11px", color: "#1F5F52", textDecoration: "underline" }}>{fileNameFromUrl(url)}</a>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {record.radiological_examination && (
+              <div style={{ marginBottom: "14px" }}>
+                <strong>Radiological Examination:</strong>
+                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.radiological_examination}</p>
+                {Array.isArray(record.radiological_examination_attachments) && record.radiological_examination_attachments.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                    {record.radiological_examination_attachments.map((url, i) => (
+                      /\.(png|jpe?g|gif|webp)$/i.test(url) ? (
+                        <img key={i} src={url} alt="Radiological examination attachment" style={{ width: "90px", height: "90px", objectFit: "contain", borderRadius: "6px", border: "1px solid #DCE3DD", background: "#f3f4f6" }} />
+                      ) : (
+                        <a key={i} href={url} target="_blank" rel="noreferrer" style={{ fontSize: "11px", color: "#1F5F52", textDecoration: "underline" }}>{fileNameFromUrl(url)}</a>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {record.gross_pathology && (
               <div style={{ marginBottom: "14px" }}>
                 <strong>Gross Pathology:</strong>
                 <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.gross_pathology}</p>
                 {record.gross_photo_url && (
                   <img src={record.gross_photo_url} alt="Gross specimen" style={{ maxWidth: "260px", maxHeight: "200px", marginTop: "8px", borderRadius: "6px", border: "1px solid #DCE3DD" }} />
+                )}
+              </div>
+            )}
+            {record.histopathological_features && (
+              <div style={{ marginBottom: "14px" }}>
+                <strong>Histopathological Features:</strong>
+                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.histopathological_features}</p>
+                {Array.isArray(record.histopathological_features_attachments) && record.histopathological_features_attachments.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                    {record.histopathological_features_attachments.map((url, i) => (
+                      /\.(png|jpe?g|gif|webp)$/i.test(url) ? (
+                        <img key={i} src={url} alt="Histopathological features attachment" style={{ width: "90px", height: "90px", objectFit: "contain", borderRadius: "6px", border: "1px solid #DCE3DD", background: "#f3f4f6" }} />
+                      ) : (
+                        <a key={i} href={url} target="_blank" rel="noreferrer" style={{ fontSize: "11px", color: "#1F5F52", textDecoration: "underline" }}>{fileNameFromUrl(url)}</a>
+                      )
+                    ))}
+                  </div>
                 )}
               </div>
             )}
