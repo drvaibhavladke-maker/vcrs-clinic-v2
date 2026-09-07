@@ -286,11 +286,10 @@ const MODULES = [
       { name: "Clinical Examination Attachments", db: "clinical_examination_attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
       { name: "Radiological Examination", db: "radiological_examination", type: "textarea", rows: 3 },
       { name: "Radiological Examination Attachments", db: "radiological_examination_attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
-      { name: "Gross Pathology", db: "gross_pathology", type: "textarea", rows: 3 },
+            { name: "Gross Pathology", db: "gross_pathology", type: "textarea", rows: 3 },
       { name: "Gross Photo", db: "gross_photo_url", type: "file", bucket: "documents", accept: "image/*" },
-      { name: "Histopathological Features", db: "histopathological_features", type: "textarea", rows: 4 },
-      { name: "Histopathological Features Attachments", db: "histopathological_features_attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
       { name: "Microscopic / Biopsy Report", db: "biopsy_report", type: "textarea", rows: 8 },
+      { name: "Biopsy Report Attachments", db: "histopathological_features_attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx" },
       { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
       { name: "Note", db: "note", type: "textarea", rows: 2 },
       { name: "Status", db: "status", type: "select", options: ["Pending", "Finalized"] },
@@ -1891,15 +1890,15 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
                 )}
               </div>
             )}
-            {record.histopathological_features && (
+                        {record.biopsy_report && (
               <div style={{ marginBottom: "14px" }}>
-                <strong>Histopathological Features:</strong>
-                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.histopathological_features}</p>
+                <strong>Microscopic / Biopsy Report:</strong>
+                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.biopsy_report}</p>
                 {Array.isArray(record.histopathological_features_attachments) && record.histopathological_features_attachments.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
                     {record.histopathological_features_attachments.map((url, i) => (
                       /\.(png|jpe?g|gif|webp)$/i.test(url) ? (
-                        <img key={i} src={url} alt="Histopathological features attachment" style={{ width: "90px", height: "90px", objectFit: "contain", borderRadius: "6px", border: "1px solid #DCE3DD", background: "#f3f4f6" }} />
+                        <img key={i} src={url} alt="Biopsy report attachment" style={{ width: "90px", height: "90px", objectFit: "contain", borderRadius: "6px", border: "1px solid #DCE3DD", background: "#f3f4f6" }} />
                       ) : (
                         <a key={i} href={url} target="_blank" rel="noreferrer" style={{ fontSize: "11px", color: "#1F5F52", textDecoration: "underline" }}>{fileNameFromUrl(url)}</a>
                       )
@@ -1908,13 +1907,7 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
                 )}
               </div>
             )}
-            {record.biopsy_report && (
-              <div style={{ marginBottom: "14px" }}>
-                <strong>Microscopic / Biopsy Report:</strong>
-                <p style={{ margin: "4px 0 0", whiteSpace: "pre-line" }}>{record.biopsy_report}</p>
-              </div>
-            )}
-            {record.final_diagnosis && (
+             {record.final_diagnosis && (
               <div style={{ marginBottom: "14px" }}>
                 <strong>Final Diagnosis: </strong>
                 <span style={{ fontWeight: 700 }}>{record.final_diagnosis}</span>
