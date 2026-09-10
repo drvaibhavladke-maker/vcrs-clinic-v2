@@ -26,12 +26,11 @@ export default async function handler(req, res) {
   const { data: settingsRows } = await supabase.from("settings").select("*").eq("key", "doctor_phone");
   const doctorPhone = settingsRows?.[0]?.value;
 
-  let sent = 0;
+   let sent = 0;
   for (const appt of appts || []) {
     const patientName = [appt.patients?.first_name, appt.patients?.last_name].filter(Boolean).join(" ");
     const patientPhone = appt.patients?.mobile;
     const doctorName = appt.doctor || "the doctor";
-    const smsBody = `Reminder: ${patientName} has an appointment tomorrow (${appt.appointment_date}) at ${appt.appointment_time} with ${doctorName}.`;
 
     try {
       if (patientPhone) {
@@ -45,7 +44,18 @@ export default async function handler(req, res) {
         });
       }
       if (doctorPhone) {
-        await twilioClient.messages.create({ body: smsBody, from: process.env.TWILIO_SMS_FROM, to: formatPhone(doctorPhone) });
+        try {
+          await sendPatientReminder({
+            twilioClient,
+            to: formatPhone(doctorPhone),
+            patientName,
+            doctorName,
+            date: appt.appointment_date,
+            time: appt.appointment_time,
+          });
+        } catch (doctorCopyError) {
+          console.error("Failed to send doctor copy for appointment", appt.id, doctorCopyError.message);
+        }
       }
       await supabase.from("appointments").update({ reminder_sent: true }).eq("id", appt.id);
       sent++;
@@ -53,7 +63,6 @@ export default async function handler(req, res) {
       console.error("Failed to send for appointment", appt.id, e.message);
     }
   }
-
   return res.status(200).json({ checked: appts?.length || 0, sent });
 }
 
