@@ -58,11 +58,26 @@ export default async function handler(req, res) {
 }
 
 async function sendPatientReminder({ twilioClient, to, patientName, doctorName, date, time }) {
-  await twilioClient.messages.create({
-    body: `Hi ${patientName}, this is a reminder for your appointment with ${doctorName} on ${date} at ${time}. Please arrive 10 minutes early. - VSL Integrative Health: From Discovery to Complete Care`,
-    from: process.env.TWILIO_SMS_FROM,
-    to,
-  });
+  try {
+    await twilioClient.messages.create({
+      contentSid: process.env.TWILIO_TEMPLATE_APPOINTMENT_REMINDER_SID,
+      contentVariables: JSON.stringify({
+        "1": patientName,
+        "2": doctorName,
+        "3": date,
+        "4": time,
+      }),
+      from: `whatsapp:${process.env.TWILIO_WHATSAPP_FROM}`,
+      to: `whatsapp:${to}`,
+    });
+  } catch (whatsappError) {
+    console.error("WhatsApp send failed, falling back to SMS:", whatsappError.message);
+    await twilioClient.messages.create({
+      body: `Hi ${patientName}, this is a reminder for your appointment with ${doctorName} on ${date} at ${time}. Please arrive 10 minutes early. - VSL Integrative Health: From Discovery to Complete Care`,
+      from: process.env.TWILIO_SMS_FROM,
+      to,
+    });
+  }
 }
 function formatPhone(raw) {
   const digits = raw.replace(/[^\d+]/g, "");
