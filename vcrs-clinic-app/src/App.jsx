@@ -185,6 +185,21 @@ Do not substitute the prescribed medicines and do not repeat them without doctor
 Please bring this prescription during your next visit.`;
 const MODULES = [
   {
+    key: "enquiries", label: "Enquiries", table: "enquiries", icon: Inbox, category: "Front Desk",
+    displayIdField: null, audit: true,
+    fields: [
+      { name: "Name", db: "name", type: "text", required: true },
+      { name: "Phone", db: "phone", type: "text", required: true },
+      { name: "Source", db: "source", type: "select", options: ["Walk-in", "Phone Call", "WhatsApp", "Google My Business", "Website", "Referral", "Other"] },
+      { name: "Interest / Reason", db: "interest", type: "textarea", rows: 2 },
+      { name: "Enquiry Date", db: "enquiry_date", type: "date", default: todayISO() },
+      { name: "Status", db: "status", type: "select", options: ["New", "Contacted", "Converted", "Lost"] },
+      { name: "Notes", db: "notes", type: "textarea", rows: 3 },
+      { name: "Converted Patient", db: "patient_id", type: "fk", module: "patients" },
+    ],
+    listColumns: ["Name", "Phone", "Source", "Status"],
+  },
+  {
     key: "patients", label: "Patients", table: "patients", icon: Users, category: "Clinical",
     displayIdField: "patient_id", audit: true,
     fields: [
@@ -1515,15 +1530,17 @@ function Dashboard({ data, goToPatient, setView }) {
   const unpaid = (data.billing || []).filter((b) => b.status !== "Paid").reduce((s, b) => s + (parseFloat(b.net_amount) || 0), 0);
   const activeProjects = (data.researchprojects || []).filter((p) => p.status === "Ongoing").length;
   const pendingLabs = (data.laboratory || []).filter((l) => l.status === "Pending").length;
+  const newEnquiries = (data.enquiries || []).filter((e) => e.status === "New").length;
   const patientById = (id) => patients.find((p) => p.id === id);
   const stats = [
+    { label: "New enquiries", value: newEnquiries, icon: Inbox, view: "enquiries" },
     { label: "Patients on file", value: patients.length, icon: Users, view: "patients" },
     { label: "Today's appointments", value: todaysAppts.length, icon: CalendarDays, view: "appointments" },
     { label: "Outstanding balance", value: fmtMoney(unpaid), icon: Receipt, mono: true, view: "billing" },
     { label: "Pending lab results", value: pendingLabs, icon: FlaskConical, view: "laboratory" },
     { label: "Active research projects", value: activeProjects, icon: Microscope },
   ];
-  return (
+return (
     <div>
       <header className="mb-6 flex items-center gap-3">
         {getSetting(data, "clinic_logo_url") && (
@@ -1534,7 +1551,7 @@ function Dashboard({ data, goToPatient, setView }) {
           <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
         </div>
       </header>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
       {stats.map((s) => {
           const Icon = s.icon;
           return (
