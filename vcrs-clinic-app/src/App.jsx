@@ -551,7 +551,7 @@ const MODULES = [
   },
 ];
 const MODULES_BY_KEY = Object.fromEntries(MODULES.map((m) => [m.key, m]));
-const CATEGORY_ORDER = ["Clinical", "Billing", "Research", "Admin"];
+const CATEGORY_ORDER = ["Front Desk", "Clinical", "Billing", "Research", "Admin"];
 
 function recordLabel(module, rec) {
   if (!rec) return "—";
