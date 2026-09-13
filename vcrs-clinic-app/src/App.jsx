@@ -335,7 +335,9 @@ const MODULES = [
       { name: "Provisional / Differential Diagnosis", db: "provisional_diagnosis", type: "textarea", rows: 2 },
       { name: "Histological Examination", db: "histological_exam", type: "textarea", rows: 2 },
       { name: "Final Diagnosis", db: "final_diagnosis", type: "textarea", rows: 2 },
-      { name: "Treatment Plan", db: "treatment_plan", type: "textarea", rows: 2 },
+            { name: "Treatment Plan", db: "treatment_plan", type: "textarea", rows: 2 },
+      { name: "Follow-up Date", db: "follow_up_date", type: "date" },
+      { name: "Follow-up Status", db: "follow_up_status", type: "select", options: ["Pending", "Completed", "Not Required"] },
       { name: "Notes", db: "notes", type: "textarea", rows: 2 },
       { name: "Attachments (Photos / X-Rays / Reports)", db: "attachments", type: "multifile", bucket: "documents", accept: "image/*,.pdf,.doc,.docx", showOralCavityMap: true },
       { name: "Status", db: "status", type: "select", options: ["Open", "Finalized"] },
@@ -1578,10 +1580,14 @@ function Dashboard({ data, goToPatient, setView }) {
   const unpaid = (data.billing || []).filter((b) => b.status !== "Paid").reduce((s, b) => s + (parseFloat(b.net_amount) || 0), 0);
   const activeProjects = (data.researchprojects || []).filter((p) => p.status === "Ongoing").length;
   const pendingLabs = (data.laboratory || []).filter((l) => l.status === "Pending").length;
-  const newEnquiries = (data.enquiries || []).filter((e) => e.status === "New").length;
+    const newEnquiries = (data.enquiries || []).filter((e) => e.status === "New").length;
+  const recallsDue = (data.casepapers || [])
+    .filter((c) => c.follow_up_date && c.follow_up_date <= todayISO() && c.follow_up_status !== "Completed" && c.follow_up_status !== "Not Required")
+    .sort((a, b) => (a.follow_up_date || "").localeCompare(b.follow_up_date || ""));
   const patientById = (id) => patients.find((p) => p.id === id);
   const stats = [
     { label: "New enquiries", value: newEnquiries, icon: Inbox, view: "enquiries" },
+    { label: "Recall due", value: recallsDue.length, icon: AlertTriangle, view: "casepapers" },
     { label: "Patients on file", value: patients.length, icon: Users, view: "patients" },
     { label: "Today's appointments", value: todaysAppts.length, icon: CalendarDays, view: "appointments" },
     { label: "Outstanding balance", value: fmtMoney(unpaid), icon: Receipt, mono: true, view: "billing" },
@@ -1599,7 +1605,7 @@ return (
           <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</p>
         </div>
       </header>
-           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-8">
       {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -1625,6 +1631,27 @@ return (
                   <span style={{ fontFamily: "IBM Plex Mono, monospace", color: COLORS.teal }} className="text-xs font-medium w-14">{a.appointment_time}</span>
                   <span className="text-sm flex-1 truncate" style={{ color: COLORS.ink }}>{p ? recordLabel(MODULES_BY_KEY.patients, p) : "Unknown patient"}</span>
                   <span className="text-xs truncate" style={{ color: COLORS.inkSoft, maxWidth: "160px" }}>{a.doctor}</span>
+                </li>
+              );
+                       })}
+          </ul>
+        )}
+      </div>
+      <div className="rounded-xl overflow-hidden mt-5" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+          <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="font-semibold text-sm">Recall due</h2>
+          <button onClick={() => setView("casepapers")} className="text-xs font-semibold" style={{ color: COLORS.teal }}>View all</button>
+        </div>
+        {recallsDue.length === 0 ? <p className="text-sm px-5 py-8 text-center" style={{ color: COLORS.inkSoft }}>No patients overdue for a recall visit.</p> : (
+          <ul>
+            {recallsDue.map((c) => {
+              const p = patientById(c.patient_id);
+              return (
+                <li key={c.id} onClick={() => p && goToPatient(p)} className="px-5 py-3 flex items-center gap-3 cursor-pointer transition-colors" style={{ borderBottom: `1px solid ${COLORS.line}` }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = COLORS.surface)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                  <span style={{ fontFamily: "IBM Plex Mono, monospace", color: COLORS.amber }} className="text-xs font-medium w-24">{fmtDate(c.follow_up_date)}</span>
+                  <span className="text-sm flex-1 truncate" style={{ color: COLORS.ink }}>{p ? recordLabel(MODULES_BY_KEY.patients, p) : "Unknown patient"}</span>
+                  <span className="text-xs truncate" style={{ color: COLORS.inkSoft, maxWidth: "160px" }}>{c.doctor}</span>
                 </li>
               );
             })}
