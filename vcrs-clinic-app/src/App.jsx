@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
     ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope, Brain,
-  TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download, Ruler,
+   TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download, Ruler, Mic,
 } from "lucide-react";
   import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -872,9 +872,45 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
     const [aiError, setAiError] = useState("");
   const [synopsisLoading, setSynopsisLoading] = useState(false);
   const [synopsisError, setSynopsisError] = useState("");
-    const [annotateSrc, setAnnotateSrc] = useState(null);
+        const [annotateSrc, setAnnotateSrc] = useState(null);
   const [annotateField, setAnnotateField] = useState(null);
   const [annotateBucket, setAnnotateBucket] = useState(null);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    return () => { recognitionRef.current?.stop(); };
+  }, []);
+
+  const toggleVoiceNotes = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice dictation isn't supported in this browser. Please use Chrome or Edge.");
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-IN";
+    recognition.onresult = (event) => {
+      let finalText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) finalText += event.results[i][0].transcript + " ";
+      }
+      if (finalText) {
+        setAiNotes((prev) => (prev ? prev.trim() + " " : "") + finalText.trim());
+      }
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
+  };
 
   const generateWithAI = async () => {
     if (!aiNotes.trim()) return;
@@ -985,24 +1021,36 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
         )}
       {module.key === "casepapers" && (
         <div className="rounded-lg p-3 space-y-2" style={{ background: COLORS.sage, border: `1px solid ${COLORS.line}` }}>
-          <p className="text-xs font-semibold" style={{ color: COLORS.ink }}>✨ AI Assist — draft from quick notes</p>
+                  <p className="text-xs font-semibold" style={{ color: COLORS.ink }}>✨ AI Assist — draft from quick notes</p>
           <TextArea
             rows={3}
-            placeholder="Jot rough notes from the visit here, then click Draft. Review and edit everything before saving — this is a starting point, not a final record."
+            placeholder="Jot rough notes from the visit here, or use the mic to dictate while examining the patient, then click Draft. Review and edit everything before saving — this is a starting point, not a final record."
             value={aiNotes}
             onChange={(e) => setAiNotes(e.target.value)}
           />
-          <button
-            type="button"
-            onClick={generateWithAI}
-            disabled={aiLoading || !aiNotes.trim()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"
-            style={{ background: COLORS.teal, color: "#fff" }}
-          >
-            {aiLoading ? <Loader2 size={13} className="animate-spin" /> : null}
-            {aiLoading ? "Drafting…" : "Draft Diagnosis / Plan / Notes"}
-          </button>
-          {aiError && <p className="text-xs" style={{ color: COLORS.rose }}>{aiError}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleVoiceNotes}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+              style={{ background: listening ? COLORS.rose : "#fff", color: listening ? "#fff" : COLORS.ink, border: `1px solid ${listening ? COLORS.rose : COLORS.line}` }}
+            >
+              <Mic size={13} />
+              {listening ? "Stop Dictation" : "Start Dictation"}
+            </button>
+            <button
+              type="button"
+              onClick={generateWithAI}
+              disabled={aiLoading || !aiNotes.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-60"
+              style={{ background: COLORS.teal, color: "#fff" }}
+            >
+              {aiLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+              {aiLoading ? "Drafting…" : "Draft Diagnosis / Plan / Notes"}
+            </button>
+          </div>
+          {listening && <p className="text-xs italic" style={{ color: COLORS.inkSoft }}>🎙️ Listening… speak clearly, then click "Stop Dictation" when done.</p>}
+          {aiError && <p className="text-xs" style={{ color: COLORS.rose }}>{aiError}</p>}  
         </div>
       )}
       {module.key === "researchprojects" && (
