@@ -4,7 +4,7 @@ import {
   Edit2, Trash2, Phone, Mail, MapPin, ChevronLeft, Clock, CheckCircle2,
   XCircle, AlertTriangle, Droplet, Stethoscope, Settings2,
     ShieldCheck, Wallet, FlaskConical, Image as ImageIcon, Microscope, Brain,
-   TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download, Ruler, Mic,
+      TestTube, Beaker, BookOpen, ScrollText, Lock, AlertCircle, Loader2, LogOut, FileText, BarChart3, Layers, ClipboardList, Inbox, Menu, Printer, Download, Ruler, Mic, Megaphone, Send,
 } from "lucide-react";
   import { supabase, supabaseConfigured } from "./supabaseClient";
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from "recharts";
@@ -21,6 +21,7 @@ const FONT_IMPORT =
   "@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap'); @media print { body * { visibility: hidden; } #printable-area, #printable-area * { visibility: visible; } #printable-area { width: 100%; padding-top: 0 !important; } .no-print { display: none !important; } html, body { height: auto !important; overflow: visible !important; } .print-overlay, .print-card, .print-scroll { position: static !important; display: block !important; overflow: visible !important; max-height: none !important; height: auto !important; background: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 auto !important; } aside, main { display: none !important; } }";
 const CURRENT_USER = "Admin"; // replace with logged-in user once auth is added
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const monthsAgoISO = (months) => { const d = new Date(); d.setMonth(d.getMonth() - Number(months || 0)); return d.toISOString().slice(0, 10); };
 const fmtDate = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso.length <= 10 ? iso + "T00:00:00" : iso);
@@ -1661,6 +1662,245 @@ return (
     </div>
   );
 }
+/* ---------------------------------------------------------------
+   Broadcast — send a WhatsApp message to a filtered group of patients
+------------------------------------------------------------------ */
+function BroadcastView({ data, session }) {
+  const [filterType, setFilterType] = useState("recall");
+  const [inactiveMonths, setInactiveMonths] = useState(6);
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [result, setResult] = useState(null);
+  const [sendError, setSendError] = useState("");
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+
+  const patients = data.patients || [];
+  const casepapers = data.casepapers || [];
+  const appointments = data.appointments || [];
+
+  const doctorNames = useMemo(() => {
+    const set = new Set();
+    appointments.forEach((a) => a.doctor && set.add(a.doctor));
+    casepapers.forEach((c) => c.doctor && set.add(c.doctor));
+    return Array.from(set).sort();
+  }, [appointments, casepapers]);
+
+  useEffect(() => {
+    if (!selectedDoctor && doctorNames.length > 0) setSelectedDoctor(doctorNames[0]);
+  }, [doctorNames, selectedDoctor]);
+
+  const lastVisitByPatient = useMemo(() => {
+    const map = {};
+    const note = (patientId, dateStr) => {
+      if (!patientId || !dateStr) return;
+      if (!map[patientId] || dateStr > map[patientId]) map[patientId] = dateStr;
+    };
+    appointments.forEach((a) => { if (a.status === "Completed") note(a.patient_id, a.appointment_date); });
+    casepapers.forEach((c) => note(c.patient_id, c.visit_date));
+    return map;
+  }, [appointments, casepapers]);
+
+  const recipients = useMemo(() => {
+    if (filterType === "all") return patients;
+    if (filterType === "recall") {
+      const overdueIds = new Set(
+        casepapers
+          .filter((c) => c.follow_up_date && c.follow_up_date <= todayISO() && c.follow_up_status !== "Completed" && c.follow_up_status !== "Not Required")
+          .map((c) => c.patient_id)
+      );
+      return patients.filter((p) => overdueIds.has(p.id));
+    }
+    if (filterType === "inactive") {
+      const cutoff = monthsAgoISO(inactiveMonths);
+      return patients.filter((p) => { const last = lastVisitByPatient[p.id]; return !last || last < cutoff; });
+    }
+    if (filterType === "doctor") {
+      const ids = new Set();
+      appointments.forEach((a) => { if (a.doctor === selectedDoctor) ids.add(a.patient_id); });
+      casepapers.forEach((c) => { if (c.doctor === selectedDoctor) ids.add(c.patient_id); });
+      return patients.filter((p) => ids.has(p.id));
+    }
+    return [];
+  }, [filterType, inactiveMonths, selectedDoctor, patients, casepapers, appointments, lastVisitByPatient]);
+
+  const recipientsWithPhone = recipients.filter((p) => p.mobile);
+  const recipientsWithoutPhone = recipients.length - recipientsWithPhone.length;
+
+  const filterLabels = {
+    recall: "Recall due",
+    inactive: `No visit in ${inactiveMonths}+ months`,
+    doctor: `Patients of ${selectedDoctor || "—"}`,
+    all: "All patients",
+  };
+
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const { data: rows, error } = await supabase.from("broadcasts").select("*").order("created_at", { ascending: false }).limit(20);
+      if (error) throw error;
+      setHistory(rows || []);
+    } catch (e) {
+      setHistoryError(e.message || "Could not load broadcast history. Has the broadcasts table been created in Supabase?");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  const doSend = async () => {
+    setSending(true);
+    setSendError("");
+    setResult(null);
+    try {
+      const token = session?.access_token;
+      const res = await fetch("/api/send-broadcast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          patientIds: recipientsWithPhone.map((p) => p.id),
+          message,
+          filterType,
+          filterLabel: filterLabels[filterType],
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Broadcast failed");
+      setResult(json);
+      setMessage("");
+      loadHistory();
+    } catch (e) {
+      setSendError(e.message || "Something went wrong sending the broadcast.");
+    } finally {
+      setSending(false);
+      setConfirming(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold">Broadcast</h1>
+        <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">Send a WhatsApp message to a filtered group of patients — recalls, inactive patients, or a specific doctor's list.</p>
+      </div>
+
+      <div className="rounded-xl p-5 mb-6" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+        <p style={{ color: COLORS.ink }} className="text-sm font-semibold mb-3">1. Choose recipients</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+          {[
+            { key: "recall", label: "Recall due" },
+            { key: "inactive", label: "Inactive patients" },
+            { key: "doctor", label: "By doctor" },
+            { key: "all", label: "All patients" },
+          ].map((f) => (
+            <button key={f.key} onClick={() => setFilterType(f.key)}
+              className="px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
+              style={{ background: filterType === f.key ? COLORS.teal : "transparent", color: filterType === f.key ? "#fff" : COLORS.ink, borderColor: filterType === f.key ? COLORS.teal : COLORS.line }}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {filterType === "inactive" && (
+          <div className="flex items-center gap-2 mb-3">
+            <label style={{ color: COLORS.inkSoft }} className="text-xs">No visit in the last</label>
+            <Select value={inactiveMonths} onChange={(e) => setInactiveMonths(Number(e.target.value))} style={{ width: "auto" }}>
+              {[3, 6, 12, 18, 24].map((m) => <option key={m} value={m}>{m} months</option>)}
+            </Select>
+          </div>
+        )}
+        {filterType === "doctor" && (
+          <div className="flex items-center gap-2 mb-3">
+            <label style={{ color: COLORS.inkSoft }} className="text-xs">Doctor</label>
+            <Select value={selectedDoctor} onChange={(e) => setSelectedDoctor(e.target.value)} style={{ width: "auto" }}>
+              {doctorNames.length === 0 && <option value="">No doctors found</option>}
+              {doctorNames.map((d) => <option key={d} value={d}>{d}</option>)}
+            </Select>
+          </div>
+        )}
+        <p style={{ color: COLORS.inkSoft }} className="text-xs">
+          {recipientsWithPhone.length} patient{recipientsWithPhone.length === 1 ? "" : "s"} will receive this message
+          {recipientsWithoutPhone > 0 ? ` (${recipientsWithoutPhone} more matched but have no phone number on file)` : ""}.
+        </p>
+        {recipients.length > 0 && (
+          <div className="mt-3 max-h-40 overflow-y-auto rounded-lg" style={{ border: `1px solid ${COLORS.line}` }}>
+            {recipients.map((p) => (
+              <div key={p.id} className="px-3 py-1.5 text-xs flex items-center justify-between" style={{ borderBottom: `1px solid ${COLORS.line}`, color: p.mobile ? COLORS.ink : COLORS.inkSoft }}>
+                <span>{recordLabel(MODULES_BY_KEY.patients, p)}</span>
+                <span>{p.mobile || "no phone on file"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl p-5 mb-6" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+        <p style={{ color: COLORS.ink }} className="text-sm font-semibold mb-3">2. Write your message</p>
+        <TextArea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="e.g. It's time for your 6-month dental check-up. Call us to book your next appointment." />
+        {message.trim() && (
+          <div className="mt-3 p-3 rounded-lg text-xs" style={{ background: COLORS.sage, color: COLORS.ink }}>
+            <p className="font-semibold mb-1">Preview</p>
+            <p>Hi {recipientsWithPhone[0] ? recipientsWithPhone[0].first_name : "[Patient name]"}, {message.trim()}</p>
+            <p className="mt-1" style={{ color: COLORS.inkSoft }}>- VSL Integrative Health: From Discovery to Complete Care</p>
+          </div>
+        )}
+        <p style={{ color: COLORS.inkSoft }} className="text-xs mt-2">Sent over WhatsApp using your approved broadcast template. Each patient's name is filled in automatically.</p>
+      </div>
+
+      {sendError && <ErrorBanner message={sendError} onDismiss={() => setSendError("")} />}
+      {result && (
+        <div className="rounded-xl p-4 mb-6 text-sm" style={{ background: COLORS.sage, color: COLORS.ink, border: `1px solid ${COLORS.line}` }}>
+          Sent to {result.sentCount} of {result.recipientCount} patients.{result.failedCount > 0 ? ` ${result.failedCount} failed to send — check the history below for details.` : ""}
+        </div>
+      )}
+
+      <div className="mb-8">
+        {!confirming ? (
+          <PrimaryButton onClick={() => setConfirming(true)} disabled={recipientsWithPhone.length === 0 || !message.trim() || sending}>
+            <Send size={14} className="inline mr-1.5 -mt-0.5" /> Send to {recipientsWithPhone.length} patient{recipientsWithPhone.length === 1 ? "" : "s"}
+          </PrimaryButton>
+        ) : (
+          <div className="rounded-xl p-4" style={{ background: COLORS.roseSoft, border: `1px solid ${COLORS.rose}` }}>
+            <p style={{ color: COLORS.ink }} className="text-sm font-medium mb-3">Send this message to {recipientsWithPhone.length} patient{recipientsWithPhone.length === 1 ? "" : "s"} over WhatsApp now?</p>
+            <div className="flex gap-2">
+              <PrimaryButton onClick={doSend} disabled={sending}>{sending ? "Sending…" : "Yes, send now"}</PrimaryButton>
+              <button onClick={() => setConfirming(false)} disabled={sending} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ color: COLORS.inkSoft, border: `1px solid ${COLORS.line}` }}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl overflow-hidden" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
+        <div className="px-5 py-4" style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+          <h2 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="font-semibold text-sm">Broadcast history</h2>
+        </div>
+        {historyLoading ? (
+          <p className="text-sm px-5 py-8 text-center" style={{ color: COLORS.inkSoft }}>Loading…</p>
+        ) : historyError ? (
+          <p className="text-sm px-5 py-8 text-center" style={{ color: COLORS.rose }}>{historyError}</p>
+        ) : history.length === 0 ? (
+          <p className="text-sm px-5 py-8 text-center" style={{ color: COLORS.inkSoft }}>No broadcasts sent yet.</p>
+        ) : (
+          <ul>
+            {history.map((b) => (
+              <li key={b.id} className="px-5 py-3" style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span style={{ fontFamily: "IBM Plex Mono, monospace", color: COLORS.amber }} className="text-xs font-medium">{fmtDate(b.created_at?.slice(0, 10))}</span>
+                  <span className="text-xs" style={{ color: COLORS.inkSoft }}>{b.filter_label || b.filter_type} · {b.sent_count}/{b.recipient_count} sent{b.failed_count > 0 ? `, ${b.failed_count} failed` : ""}</span>
+                </div>
+                <p className="text-sm truncate" style={{ color: COLORS.ink }}>{b.message}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ---------------------------------------------------------------
    Setup screen shown if env vars are missing
@@ -2672,7 +2912,12 @@ const [loadError, setLoadError] = useState("");
           <button onClick={() => { setView("reports"); setActivePatient(null); setMobileMenuOpen(false); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
             style={{ background: view === "reports" ? COLORS.teal : "transparent", color: view === "reports" ? "#fff" : "#B7D1C9" }}>
-            <BarChart3 size={16} /> Reports
+                        <BarChart3 size={16} /> Reports
+          </button>
+          <button onClick={() => { setView("broadcast"); setActivePatient(null); setMobileMenuOpen(false); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: view === "broadcast" ? COLORS.teal : "transparent", color: view === "broadcast" ? "#fff" : "#B7D1C9" }}>
+            <Megaphone size={16} /> Broadcast
           </button>
           {NAV_GROUPS.map((g) => (
             <div key={g.category}>
@@ -2704,7 +2949,8 @@ const [loadError, setLoadError] = useState("");
      <ErrorBanner message={loadError || actionError} onDismiss={() => { setLoadError(""); setActionError(""); }} />
 
        {view === "dashboard" && <Dashboard data={data} goToPatient={goToPatient} setView={setView} />}
-       {view === "reports" && <ReportsView data={data} setView={setView} openPrint={setPrintTarget} />} 
+              {view === "reports" && <ReportsView data={data} setView={setView} openPrint={setPrintTarget} />}
+       {view === "broadcast" && <BroadcastView data={data} session={session} />}
        {view === "patients" && !activePatient && (
    <PatientsList patients={filteredPatients} billing={data.billing || []} search={search} setSearch={setSearch} onAdd={() => setModal({ moduleKey: "patients" })} onOpen={goToPatient} onEdit={(p) => setModal({ moduleKey: "patients", initial: p })} onDelete={(p) => openDelete("patients", p)} />     
    )}
