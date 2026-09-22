@@ -1900,8 +1900,7 @@ const [sending, setSending] = useState(false);
             </Select>
           </div>
         )}
-        {filterType === "doctor" && (
-                  {filterType === "doctor" && (
+                {filterType === "doctor" && (
           <div className="flex items-center gap-2 mb-3">
             <label style={{ color: COLORS.inkSoft }} className="text-xs">Doctor</label>
             <Select value={selectedDoctor} onChange={(e) => setSelectedDoctor(e.target.value)} style={{ width: "auto" }}>
