@@ -1744,8 +1744,11 @@ function BroadcastView({ data, session }) {
   const [filterType, setFilterType] = useState("recall");
   const [inactiveMonths, setInactiveMonths] = useState(6);
   const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [manualSearch, setManualSearch] = useState("");
+  const [manualSelected, setManualSelected] = useState(() => new Set());
+  const toggleManualPatient = (id) => setManualSelected((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
   const [message, setMessage] = useState("");
-  const [sending, setSending] = useState(false);
+const [sending, setSending] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState(null);
   const [sendError, setSendError] = useState("");
@@ -1779,10 +1782,11 @@ function BroadcastView({ data, session }) {
     return map;
   }, [appointments, casepapers]);
 
-  const recipients = useMemo(() => {
+    const recipients = useMemo(() => {
     if (filterType === "all") return patients;
+    if (filterType === "manual") return patients.filter((p) => manualSelected.has(p.id));
     if (filterType === "recall") {
-      const overdueIds = new Set(
+  const overdueIds = new Set(
         casepapers
           .filter((c) => c.follow_up_date && c.follow_up_date <= todayISO() && c.follow_up_status !== "Completed" && c.follow_up_status !== "Not Required")
           .map((c) => c.patient_id)
@@ -1799,17 +1803,24 @@ function BroadcastView({ data, session }) {
       casepapers.forEach((c) => { if (c.doctor === selectedDoctor) ids.add(c.patient_id); });
       return patients.filter((p) => ids.has(p.id));
     }
-    return [];
-  }, [filterType, inactiveMonths, selectedDoctor, patients, casepapers, appointments, lastVisitByPatient]);
+       return [];
+  }, [filterType, inactiveMonths, selectedDoctor, manualSelected, patients, casepapers, appointments, lastVisitByPatient]);
 
   const recipientsWithPhone = recipients.filter((p) => p.mobile);
   const recipientsWithoutPhone = recipients.length - recipientsWithPhone.length;
+
+  const manualSearchResults = useMemo(() => {
+    const q = manualSearch.trim().toLowerCase();
+    if (!q) return patients;
+    return patients.filter((p) => recordLabel(MODULES_BY_KEY.patients, p).toLowerCase().includes(q) || p.mobile?.includes(q));
+  }, [patients, manualSearch]);
 
   const filterLabels = {
     recall: "Recall due",
     inactive: `No visit in ${inactiveMonths}+ months`,
     doctor: `Patients of ${selectedDoctor || "—"}`,
     all: "All patients",
+    manual: "Selected patients",
   };
 
   const loadHistory = useCallback(async () => {
@@ -1861,19 +1872,20 @@ function BroadcastView({ data, session }) {
     <div>
       <div className="mb-6">
         <h1 style={{ fontFamily: "Fraunces, serif", color: COLORS.ink }} className="text-xl font-semibold">Broadcast</h1>
-        <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">Send a WhatsApp message to a filtered group of patients — recalls, inactive patients, or a specific doctor's list.</p>
+               <p style={{ color: COLORS.inkSoft }} className="text-sm mt-1">Send a WhatsApp message to a filtered group of patients — recalls, inactive patients, a specific doctor's list, or patients you pick yourself.</p>
       </div>
 
       <div className="rounded-xl p-5 mb-6" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
         <p style={{ color: COLORS.ink }} className="text-sm font-semibold mb-3">1. Choose recipients</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
           {[
             { key: "recall", label: "Recall due" },
             { key: "inactive", label: "Inactive patients" },
             { key: "doctor", label: "By doctor" },
             { key: "all", label: "All patients" },
+            { key: "manual", label: "Choose patients" },
           ].map((f) => (
-            <button key={f.key} onClick={() => setFilterType(f.key)}
+        <button key={f.key} onClick={() => setFilterType(f.key)}
               className="px-3 py-2 rounded-lg text-sm font-medium border transition-colors"
               style={{ background: filterType === f.key ? COLORS.teal : "transparent", color: filterType === f.key ? "#fff" : COLORS.ink, borderColor: filterType === f.key ? COLORS.teal : COLORS.line }}>
               {f.label}
@@ -1889,6 +1901,7 @@ function BroadcastView({ data, session }) {
           </div>
         )}
         {filterType === "doctor" && (
+                  {filterType === "doctor" && (
           <div className="flex items-center gap-2 mb-3">
             <label style={{ color: COLORS.inkSoft }} className="text-xs">Doctor</label>
             <Select value={selectedDoctor} onChange={(e) => setSelectedDoctor(e.target.value)} style={{ width: "auto" }}>
@@ -1897,11 +1910,32 @@ function BroadcastView({ data, session }) {
             </Select>
           </div>
         )}
+        {filterType === "manual" && (
+          <div className="mb-3">
+            <div className="mb-2"><TextInput placeholder="Search patients by name or mobile…" value={manualSearch} onChange={(e) => setManualSearch(e.target.value)} /></div>
+            <div className="max-h-56 overflow-y-auto rounded-lg" style={{ border: `1px solid ${COLORS.line}` }}>
+              {manualSearchResults.length === 0 ? (
+                <p className="text-xs px-3 py-4 text-center" style={{ color: COLORS.inkSoft }}>No patients match.</p>
+              ) : (
+                manualSearchResults.map((p) => (
+                  <label key={p.id} className="px-3 py-1.5 text-xs flex items-center gap-2 cursor-pointer" style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                    <input type="checkbox" checked={manualSelected.has(p.id)} onChange={() => toggleManualPatient(p.id)} />
+                    <span className="flex-1" style={{ color: p.mobile ? COLORS.ink : COLORS.inkSoft }}>{recordLabel(MODULES_BY_KEY.patients, p)}</span>
+                    <span style={{ color: COLORS.inkSoft }}>{p.mobile || "no phone on file"}</span>
+                  </label>
+                ))
+              )}
+            </div>
+            {manualSelected.size > 0 && (
+              <button type="button" onClick={() => setManualSelected(new Set())} className="text-xs font-semibold mt-2" style={{ color: COLORS.rose }}>Clear selection</button>
+            )}
+          </div>
+        )}
         <p style={{ color: COLORS.inkSoft }} className="text-xs">
           {recipientsWithPhone.length} patient{recipientsWithPhone.length === 1 ? "" : "s"} will receive this message
           {recipientsWithoutPhone > 0 ? ` (${recipientsWithoutPhone} more matched but have no phone number on file)` : ""}.
         </p>
-        {recipients.length > 0 && (
+        {filterType !== "manual" && recipients.length > 0 && (
           <div className="mt-3 max-h-40 overflow-y-auto rounded-lg" style={{ border: `1px solid ${COLORS.line}` }}>
             {recipients.map((p) => (
               <div key={p.id} className="px-3 py-1.5 text-xs flex items-center justify-between" style={{ borderBottom: `1px solid ${COLORS.line}`, color: p.mobile ? COLORS.ink : COLORS.inkSoft }}>
@@ -1912,7 +1946,6 @@ function BroadcastView({ data, session }) {
           </div>
         )}
       </div>
-
       <div className="rounded-xl p-5 mb-6" style={{ background: COLORS.card, border: `1px solid ${COLORS.line}` }}>
         <p style={{ color: COLORS.ink }} className="text-sm font-semibold mb-3">2. Write your message</p>
         <TextArea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="e.g. It's time for your 6-month dental check-up. Call us to book your next appointment." />
