@@ -154,11 +154,12 @@ const NDRP_EXPECTED_OUTCOMES = "Expected outcomes (6-12 weeks): improved daily s
 ------------------------------------------------------------------ */
 const PRESCRIPTION_PROTOCOL_DEFAULT = `Modify the Routine / Lifestyle Advice
 1) Morning Walk/ exercise — 30 minutes
-2) Reduce stress / anxiety — meditation
+2) Reduce stress/anxiety — Identify the factors and work on those
 3) Drink lukewarm water on waking up — ½ to 1 glass every day
 4) Regular sleep pattern
 5) Regular food pattern
-6) Reduce screen time
+6) Break from Routine
+7) Reduce screen time
 
 Medicines
 - Cap Antoxid HC (30): 0 – 0 – 1 × 30 days
@@ -173,16 +174,19 @@ Medicines
 - Tab Wysolone 15 mg: 1 – 0 – 1 × 3 days
 - Tab Wysolone 10 mg: 1 – 0 – 1 × 3 days
 - Tab Wysolone 5 mg: 1 – 0 – 1 × 3 days
-- Tab Wysolone 5 mg: 1 – 0 – 0 × 3 days
-- Cholecalciferol sachet 10: one per day for 7 days
-- Tab Deworm: 1 tablet, every 6 months
+- Tab Wysolone 5 mg: 0 – 0 – 1 × 3 days
+- Cholecalciferol sachet: one per day for 7 days
+- Tab Deworm: 1 tablet every 6 months
 - Chewable Jeshtmadh Ghanvati — 15 days: chew 2–3 tablets per day
-- Jeshtmadhu Ghrut — 15 days: apply on the lesion 2–3 times a day; take ½ spoon at night
-- Jatayadi Oil — oil pulling, 15 days
-- Betadine Mouthwash — 15 days: 2 times a day, after food
+- Jeshtmadh Ghrut — 15 days: apply on the lesion 2–3 times a day; take ½ spoon at night
+- Irimedadi Oil — oil pulling, 15 days
+- Patoladi Kwath Tablet: 2 tablets twice a day × 15 days
+- CoolOra Mouthwash — 15 days: Gargle 2 times a day, after food
 - Drink plenty of water — intermittent sips
+- Advised Scaling.
+- Advised Soft Guard.
 
-Do not substitute the prescribed medicines and do not repeat them without doctor's advice.
+Do not substitute the prescribed medicines and do not repeat them without a doctor's advice.
 Please bring this prescription during your next visit.`;
 const MODULES = [
   {
