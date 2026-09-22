@@ -188,6 +188,42 @@ Medicines
 
 Do not substitute the prescribed medicines and do not repeat them without a doctor's advice.
 Please bring this prescription during your next visit.`;
+const PRESCRIPTION_PROTOCOL_DEFAULT_MR = `दिनचर्या / जीवनशैलीत करावयाचे बदल
+१) सकाळी फिरणे / व्यायाम — ३० मिनिटे
+२) ताण / चिंता कमी करा — कारणे ओळखून त्यावर काम करा
+३) सकाळी उठल्यावर कोमट पाणी प्या — दररोज ½ ते १ ग्लास
+४) नियमित झोपेची वेळ पाळा
+५) नियमित जेवणाची वेळ पाळा
+६) दिनचर्येत थोडा बदल / विश्रांती घ्या
+७) स्क्रीन टाइम कमी करा
+
+औषधे
+- Cap Antoxid HC (30): 0 – 0 – 1 × 30 दिवस
+- Tab SM-Fibro: 0 – 0 – 1 × 30 दिवस
+- Tab Pregal M: 0 – 0 – 1 × 30 दिवस
+- Trimtee-M 10 (Tab Amitriptyline 10 mg + Methylcobalamine 1500mcg): 0 – 0 – 1 × 30 दिवस
+- Tab Viabact (15): 0 – 0 – 1 × 15 दिवस
+- Tab Shelcal 500 mg (30): 0 – 0 – 1 × 15 दिवस
+- Tab Neurobione Forte (30): 0 – 0 – 1 × 15 दिवस
+- Tab Folic Acid (30): 0 – 0 – 1 × 15 दिवस
+- Tab Wysolone 20 mg: 1 – 0 – 1 × 3 दिवस
+- Tab Wysolone 15 mg: 1 – 0 – 1 × 3 दिवस
+- Tab Wysolone 10 mg: 1 – 0 – 1 × 3 दिवस
+- Tab Wysolone 5 mg: 1 – 0 – 1 × 3 दिवस
+- Tab Wysolone 5 mg: 0 – 0 – 1 × 3 दिवस
+- Cholecalciferol Sachet: दिवसातून एकदा, ७ दिवस
+- Tab Deworm: दर ६ महिन्यांनी १ गोळी
+- Chewable Jeshtmadh Ghanvati — १५ दिवस: दररोज २–३ गोळ्या चावून खा
+- Jeshtmadh Ghrut — १५ दिवस: जखमेवर/व्रणावर दिवसातून २–३ वेळा लावा; रात्री झोपताना ½ चमचा घ्या
+- Irimedadi Oil — तोंडात धरून गुळण्या करा (ऑइल पुलिंग), १५ दिवस
+- Patoladi Kwath Tablet: दिवसातून २ वेळा २ गोळ्या, १५ दिवस
+- CoolOra Mouthwash — १५ दिवस: जेवणानंतर दिवसातून २ वेळा गुळण्या करा
+- भरपूर पाणी प्या — थोडे थोडे करून सतत प्या
+- स्केलिंग करण्याचा सल्ला दिला आहे.
+- सॉफ्ट गार्ड वापरण्याचा सल्ला दिला आहे.
+
+डॉक्टरांच्या सल्ल्याशिवाय सांगितलेली औषधे बदलू नयेत किंवा स्वतःहून पुन्हा घेऊ नयेत.
+पुढील भेटीच्या वेळी ही प्रिस्क्रिप्शन सोबत आणावी.`;
 const MODULES = [
   {
     key: "enquiries", label: "Enquiries", table: "enquiries", icon: Inbox, category: "Front Desk",
@@ -260,7 +296,8 @@ const MODULES = [
     fields: [
     { name: "Patient ID", db: "patient_id", type: "fk", module: "patients", required: true },
     { name: "Doctor", db: "doctor", type: "text" },
-    { name: "General Instructions", db: "general_instructions", type: "textarea", rows: 10, required: true, default: PRESCRIPTION_PROTOCOL_DEFAULT },
+        { name: "General Instructions", db: "general_instructions", type: "textarea", rows: 10, required: true, default: PRESCRIPTION_PROTOCOL_DEFAULT },
+    { name: "General Instructions (Marathi)", db: "general_instructions_marathi", type: "textarea", rows: 10, default: PRESCRIPTION_PROTOCOL_DEFAULT_MR },
     { name: "Attachment", db: "attachment_url", type: "file", bucket: "documents", accept: ".pdf,.doc,.docx,image/*" },
     { name: "Status", db: "status", type: "select", options: ["Active", "Completed", "Cancelled"] },
   ],
@@ -2208,12 +2245,17 @@ function PrintDocument({ type, record, patient, data, hideWrapperId }) {
         </>
     ) : type === "prescription" ? (
         <>
-          <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "20px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px" }}>℞ Prescription</h2>
+                    <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "20px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px" }}>℞ Prescription</h2>
           <div style={{ fontSize: "13px", marginTop: "12px", lineHeight: 1.9, whiteSpace: "pre-line" }}>
             {record.general_instructions}
           </div>
+          {record.general_instructions_marathi && (
+            <div style={{ fontSize: "13px", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid #DCE3DD", lineHeight: 1.9, whiteSpace: "pre-line", fontFamily: "'Nirmala UI', 'Noto Sans Devanagari', sans-serif" }}>
+              {record.general_instructions_marathi}
+            </div>
+          )}
         </>
-    ) : type === "histopathology" ? (
+          ) : type === "histopathology" ? (
         <>
           <h2 style={{ fontFamily: "Fraunces, serif", fontSize: "17px", borderBottom: "1px solid #DCE3DD", paddingBottom: "6px", textAlign: "center" }}>Histopathology Report</h2>
            <div style={{ fontSize: "13px", marginTop: "14px", lineHeight: 1.7 }}>
