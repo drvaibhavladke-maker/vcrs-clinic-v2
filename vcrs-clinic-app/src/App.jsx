@@ -486,7 +486,8 @@ const MODULES = [
       { name: "Method of Data Analysis", db: "data_analysis_method", type: "textarea", rows: 3 },
       { name: "Ethical Clearance (Human/Animal Intervention)", db: "ethical_clearance", type: "textarea", rows: 2 },
       { name: "References", db: "references_list", type: "textarea", rows: 8 },
-      { name: "Budget Management", db: "budget_management", type: "textarea", rows: 4 },
+            { name: "Budget Management", db: "budget_management", type: "textarea", rows: 4 },
+      { name: "Cost Breakdown", db: "cost_breakdown", type: "costtable" },
     ],
     listColumns: ["Title", "Principal Investigator", "Department", "Status"],
   },
@@ -863,7 +864,7 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
   const buildInitial = () => {
     const f = {};
     module.fields.forEach((field) => {
-      const empty = field.type === "multifile" ? [] : "";
+            const empty = field.type === "multifile" || field.type === "costtable" ? [] : "";
       f[field.name] = initial ? (initial[field.db] ?? empty) : (defaultValues?.[field.name] ?? field.default ?? empty);
     });
     return f;
@@ -990,9 +991,14 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
     e.preventDefault();
     const required = module.fields.filter((f) => f.required);
     for (const f of required) if (!String(form[f.name] ?? "").trim()) return;
-        const payload = {};
+                const payload = {};
     module.fields.forEach((f) => {
       if (f.computed) return; // DB-generated column, never sent
+      if (f.type === "costtable") {
+        const rows = (form[f.name] || []).filter((r) => (r.item || "").trim() || String(r.amount ?? "").trim());
+        payload[f.db] = rows.length > 0 ? rows.map((r) => ({ item: r.item || "", amount: parseFloat(r.amount) || 0 })) : null;
+        return;
+      }
       payload[f.db] = form[f.name] === "" ? null : form[f.name];
     });
     if (module.key === "anxietyscreening") {
@@ -1248,8 +1254,36 @@ function GenericForm({ module, initial, data, defaultValues, lockedFields, fkFil
             </Field>
           );
         }       
-      if (field.type === "password") {
+            if (field.type === "password") {
           return <Field key={field.name} label={field.name}><TextInput type="password" value={form[field.name]} onChange={set(field.name)} autoComplete="new-password" /></Field>;
+        }
+      if (field.type === "costtable") {
+          const rows = form[field.name] || [];
+          const total = rows.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+          const updateRow = (i, key, value) => setForm((f) => ({ ...f, [field.name]: (f[field.name] || []).map((r, idx) => (idx === i ? { ...r, [key]: value } : r)) }));
+          const removeRow = (i) => setForm((f) => ({ ...f, [field.name]: (f[field.name] || []).filter((_, idx) => idx !== i) }));
+          const addRow = () => setForm((f) => ({ ...f, [field.name]: [...(f[field.name] || []), { item: "", amount: "" }] }));
+          return (
+            <Field key={field.name} label={field.name}>
+              <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${COLORS.line}` }}>
+                {rows.length > 0 && (
+                  <div>
+                    {rows.map((r, i) => (
+                      <div key={i} className="flex items-center gap-2 px-2 py-1.5" style={{ borderBottom: `1px solid ${COLORS.line}` }}>
+                        <TextInput placeholder="Item / test" value={r.item} onChange={(e) => updateRow(i, "item", e.target.value)} style={{ flex: 1 }} />
+                        <TextInput type="number" placeholder="Amount" value={r.amount} onChange={(e) => updateRow(i, "amount", e.target.value)} style={{ width: "110px" }} />
+                        <button type="button" onClick={() => removeRow(i)} className="flex-shrink-0" style={{ color: COLORS.rose }}><X size={15} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-3 py-2" style={{ background: COLORS.sage }}>
+                  <button type="button" onClick={addRow} className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: COLORS.teal }}><Plus size={13} /> Add item</button>
+                  {rows.length > 0 && <span style={{ fontFamily: "IBM Plex Mono, monospace", color: COLORS.ink }} className="text-sm font-semibold">Total: {fmtMoney(total)}</span>}
+                </div>
+              </div>
+            </Field>
+          );
         }
     if (module.key === "prescription_items" && field.name === "Medicine") {
   const usedNames = [...new Set((data.prescription_items || []).map((r) => r.medicine).filter(Boolean))];
@@ -2565,13 +2599,33 @@ function ResearchProjectPrintDocument({ record, data }) {
           ["Ethical Clearance (Human/Animal Intervention)", record.ethical_clearance],
           ["Budget Management", record.budget_management],
           ["References", record.references_list],
-        ].filter(([, v]) => v).map(([label, value]) => (
+                ].filter(([, v]) => v).map(([label, value]) => (
           <div key={label} style={{ marginBottom: "12px" }}>
             <p style={{ margin: "0 0 4px", fontWeight: 700 }}>{label}</p>
             <p style={{ margin: 0, whiteSpace: "pre-line" }}>{value}</p>
           </div>
         ))}
       </div>
+
+      {Array.isArray(record.cost_breakdown) && record.cost_breakdown.length > 0 && (
+        <div style={{ marginBottom: "12px" }}>
+          <p style={{ margin: "0 0 6px", fontWeight: 700, fontSize: "12.5px" }}>Cost Breakdown</p>
+          <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+            <tbody>
+              {record.cost_breakdown.map((r, i) => (
+                <tr key={i}>
+                  <td style={{ padding: "3px 8px 3px 0", borderBottom: "1px solid #DCE3DD" }}>{r.item}</td>
+                  <td style={{ padding: "3px 0", borderBottom: "1px solid #DCE3DD", textAlign: "right", width: "110px" }}>{fmtMoney(r.amount)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td style={{ padding: "5px 8px 0 0", fontWeight: 700, textAlign: "right" }}>Total</td>
+                <td style={{ padding: "5px 0 0", fontWeight: 700, textAlign: "right" }}>{fmtMoney(record.cost_breakdown.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0))}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div style={{ marginTop: "50px", textAlign: "right", fontSize: "13px" }}>
         {getSetting(data, "doctor_signature_url") && (
